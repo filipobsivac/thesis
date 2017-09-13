@@ -7,16 +7,17 @@ namespace thesis.Classes
 {
     public class ElementParameters
     {
-        public string Name { get; set; }
+        public string ElementName { get; set; }
 
-        //key = bond type
-        public Dictionary<int, double> A { get; set; }
-        public Dictionary<int, double> B { get; set; }
+        //0 if not specified
+        public int BondType { get; set; }
+        public double A { get; set; }
+        public double B { get; set; }
+        public double Kappa { get; set; }
 
-        public ElementParameters()
+        public ElementParameters(int bondType = 0)
         {
-            A = new Dictionary<int, double>();
-            B = new Dictionary<int, double>();            
+            BondType = bondType;
         }
     }
 }

@@ -55,6 +55,9 @@
   <ItemGroup>
     <Content Include="TestFiles\ElemBond.txt" />
     <Content Include="TestFiles\Element.txt" />
+    <Content Include="TestFiles\set01.sdf">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

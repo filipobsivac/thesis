@@ -13,7 +13,7 @@ namespace thesis.Classes
         public double Electronegativity { get; set; }
         public List<Atom> Atoms { get; set; }
 
-        Molecule()
+        public Molecule()
         {
             Atoms = new List<Atom>();
         }

@@ -18,8 +18,13 @@ namespace thesis.Classes
         //<bonded atom ID, bond type>
         public Dictionary<int, int> Bonds { get; set; }
 
-        public Atom()
+        public Atom(int id, string symbol, double x, double y, double z)
         {
+            ID = id;
+            Symbol = symbol;
+            X = x;
+            Y = y;
+            Z = z;
             Bonds = new Dictionary<int, int>();
         }
     }

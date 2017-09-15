@@ -7,7 +7,10 @@ namespace thesis.Classes
 {
     public class Molecule
     {
-        public int ID { get; set; }
+        public int NSC { get; set; }
+        public int NumOfAtoms { get; set; }
+        public int NumOfBonds { get; set; }
+        public double Electronegativity { get; set; }
         public List<Atom> Atoms { get; set; }
 
         Molecule()

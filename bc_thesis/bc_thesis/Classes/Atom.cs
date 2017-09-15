@@ -13,7 +13,6 @@ namespace thesis.Classes
         public double X { get; set; }
         public double Y { get; set; }
         public double Z { get; set; }
-        public List<ElementParameters> Parameters { get; set; }
         public double Electronegativity { get; set; }
 
         //<bonded atom ID, bond type>
@@ -21,7 +20,6 @@ namespace thesis.Classes
 
         public Atom()
         {
-            Parameters = new List<ElementParameters>();
             Bonds = new Dictionary<int, int>();
         }
     }

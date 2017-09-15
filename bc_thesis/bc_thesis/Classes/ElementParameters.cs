@@ -15,8 +15,12 @@ namespace thesis.Classes
         public double B { get; set; }
         public double Kappa { get; set; }
 
-        public ElementParameters(int bondType = 0)
+        public ElementParameters(string elemName, double a, double b, double kappa, int bondType = 0)
         {
+            ElementName = elemName;
+            A = a;
+            B = b;
+            Kappa = kappa;
             BondType = bondType;
         }
     }

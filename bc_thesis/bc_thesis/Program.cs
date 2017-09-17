@@ -87,9 +87,9 @@ namespace bc_thesis
             Console.WriteLine($"Distance between the two atoms: {distance}\n");
             #endregion
 
-            #region EEM Matrix building test
-            Console.WriteLine("EEM Matrix: \n");
-            double[,] matrix = BuildEEMMatrix(m.NumOfAtoms + 1, m.NumOfAtoms + 1, m);
+            Console.WriteLine("First matrix solution method:\n");
+            Console.WriteLine("EEM Matrix:\n");
+            double[,] matrix = BuildEEMMatrix(m);
             for(int i = 0; i <= m.NumOfAtoms; i++)
             {
                 for(int j = 0; j <= m.NumOfAtoms + 2; j++)
@@ -98,7 +98,23 @@ namespace bc_thesis
                 }
                 Console.WriteLine();
             }
-            #endregion
+            
+            Console.WriteLine(ResolveMatrix(matrix, m.NumOfAtoms + 1, m.NumOfAtoms + 1));
+            Console.WriteLine();
+
+            Console.WriteLine("Second matrix solution method:\n");
+            Console.WriteLine("EEM Matrix:\n");
+            double[,] matrix2 = BuildEEMMatrix2(m);
+            for (int i = 0; i <= m.NumOfAtoms; i++)
+            {
+                for (int j = 0; j <= m.NumOfAtoms + 1; j++)
+                {
+                    Console.Write($"{Math.Round(matrix2[i, j], 2)}\t");
+                }
+                Console.WriteLine();
+            }
+            Console.WriteLine();
+            Console.WriteLine(ResolveMatrix2(matrix2));
 
             Console.ReadKey();
         }
@@ -323,9 +339,10 @@ namespace bc_thesis
         }
 
         //TODO Q value (perhaps X value as well?)
-        private static double[,] BuildEEMMatrix(int rows, int columns, Molecule m)
+        private static double[,] BuildEEMMatrix(Molecule m)
         {
-            columns += 2;
+            int columns = m.NumOfAtoms + 3;
+            int rows = m.NumOfAtoms + 1;
             double[,] arr = new double[rows, columns];
             var atom = m.Atoms.ElementAt(0);
             var param = elemParams.First(x => x.ElementName.Equals(atom.Symbol));
@@ -367,6 +384,214 @@ namespace bc_thesis
             arr[rows - 1, columns - 2] = 1;//should be Q, for now 1
             arr[rows - 1, columns - 1] = 0;
             return arr;
+        }
+
+        //TODO Q value (perhaps X value as well?)
+        private static double[,] BuildEEMMatrix2(Molecule m)
+        {
+            int columns = m.NumOfAtoms + 2;
+            int rows = m.NumOfAtoms + 1;
+            double[,] arr = new double[rows, columns];
+            var atom = m.Atoms.ElementAt(0);
+            var param = elemParams.First(x => x.ElementName.Equals(atom.Symbol));
+            double k = param.Kappa;
+
+            for (int i = 0; i < rows - 1; i++)
+            {
+                for (int j = 0; j < columns; j++)
+                {
+                    if (j == columns - 1)
+                    {
+                        var a = m.Atoms.First(x => x.ID == i + 1);
+                        var p = elemParams.First(x => x.ElementName.Equals(a.Symbol));
+                        arr[i, j] = -(p.A);
+                    }
+                    else if (j == columns - 2)
+                    {
+                        arr[i, j] = -1;
+                    }
+                    else if (i == j)
+                    {
+                        var a = m.Atoms.First(x => x.ID == i + 1);
+                        var p = elemParams.First(x => x.ElementName.Equals(a.Symbol));
+                        arr[i, j] = p.B;
+                    }
+                    else
+                    {
+                        var a1 = m.Atoms.First(x => x.ID == i + 1);
+                        var a2 = m.Atoms.First(x => x.ID == j + 1);
+                        arr[i, j] = k / (CalculateDistance(a1, a2));
+                    }
+                }
+            }
+            for (int i = 0; i < columns - 2; i++)
+            {
+                arr[rows - 1, i] = 1;
+            }
+            arr[rows - 1, columns - 2] = 0;
+            arr[rows - 1, columns - 1] = 1;//should be Q, for now 1
+            return arr;
+        }
+        
+        private static string ResolveMatrix(double[,] matrix, int num_rows, int num_cols)
+        {
+            const double tiny = 0.00001;
+            string txt = "";
+
+            double[,] arr = matrix;
+            double[,] orig_arr = matrix;
+
+            // Start solving.
+            for (int r = 0; r < num_rows - 1; r++)
+            {
+                // Zero out all entries in column r after this row.
+                // See if this row has a non-zero entry in column r.
+                if (Math.Abs(arr[r, r]) < tiny)
+                {
+                    // Too close to zero. Try to swap with a later row.
+                    for (int r2 = r + 1; r2 < num_rows; r2++)
+                    {
+                        if (Math.Abs(arr[r2, r]) > tiny)
+                        {
+                            // This row will work. Swap them.
+                            for (int c = 0; c <= num_cols; c++)
+                            {
+                                double tmp = arr[r, c];
+                                arr[r, c] = arr[r2, c];
+                                arr[r2, c] = tmp;
+                            }
+                            break;
+                        }
+                    }
+                }
+
+                // If this row has a non-zero entry in column r, use it.
+                if (Math.Abs(arr[r, r]) > tiny)
+                {
+                    // Zero out this column in later rows.
+                    for (int r2 = r + 1; r2 < num_rows; r2++)
+                    {
+                        double factor = -arr[r2, r] / arr[r, r];
+                        for (int c = r; c <= num_cols; c++)
+                        {
+                            arr[r2, c] = arr[r2, c] + factor * arr[r, c];
+                        }
+                    }
+                }
+            }
+
+            // See if we have a solution.
+            if (arr[num_rows - 1, num_cols - 1] == 0)
+            {
+                // We have no solution.
+                // See if all of the entries in this row are 0.
+                bool all_zeros = true;
+                for (int c = 0; c <= num_cols + 1; c++)
+                {
+                    if (arr[num_rows - 1, c] != 0)
+                    {
+                        all_zeros = false;
+                        break;
+                    }
+                }
+                if (all_zeros)
+                {
+                    txt = "The solution is not unique";
+                }
+                else
+                {
+                    txt = "There is no solution";
+                }
+            }
+            else
+            {
+                // Backsolve.
+                for (int r = num_rows - 1; r >= 0; r--)
+                {
+                    double tmp = arr[r, num_cols];
+                    for (int r2 = r + 1; r2 < num_rows; r2++)
+                    {
+                        tmp -= arr[r, r2] * arr[r2, num_cols + 1];
+                    }
+                    arr[r, num_cols + 1] = tmp / arr[r, r];
+                }
+
+                // Display the results.
+                txt = "       Values:";
+                for (int r = 0; r < num_rows; r++)
+                {
+                    txt += "\r\nx" + r.ToString() + " = " +
+                        arr[r, num_cols + 1].ToString();
+                }
+
+                // Verify.
+                txt += "\r\n    Check:";
+                for (int r = 0; r < num_rows; r++)
+                {
+                    double tmp = 0;
+                    for (int c = 0; c < num_cols; c++)
+                    {
+                        tmp += orig_arr[r, c] * arr[c, num_cols + 1];
+                    }
+                    txt += "\r\n" + tmp.ToString();
+                }
+
+                txt = txt.Substring("\r\n".Length + 1);
+            }
+
+            return txt;
+        }
+
+        private static bool ResolveMatrix2(double[,] M)
+        {
+            // input checks
+            int rowCount = M.GetUpperBound(0) + 1;
+            if (M == null || M.Length != rowCount * (rowCount + 1))
+                throw new ArgumentException("The algorithm must be provided with a (n x n+1) matrix.");
+            if (rowCount < 1)
+                throw new ArgumentException("The matrix must at least have one row.");
+
+            // pivoting
+            for (int col = 0; col + 1 < rowCount; col++) if (M[col, col] == 0)
+                // check for zero coefficients
+                {
+                    // find non-zero coefficient
+                    int swapRow = col + 1;
+                    for (; swapRow < rowCount; swapRow++) if (M[swapRow, col] != 0) break;
+
+                    if (M[swapRow, col] != 0) // found a non-zero coefficient?
+                    {
+                        // yes, then swap it with the above
+                        double[] tmp = new double[rowCount + 1];
+                        for (int i = 0; i < rowCount + 1; i++)
+                        { tmp[i] = M[swapRow, i]; M[swapRow, i] = M[col, i]; M[col, i] = tmp[i]; }
+                    }
+                    else return false; // no, then the matrix has no unique solution
+                }
+
+            // elimination
+            for (int sourceRow = 0; sourceRow + 1 < rowCount; sourceRow++)
+            {
+                for (int destRow = sourceRow + 1; destRow < rowCount; destRow++)
+                {
+                    double df = M[sourceRow, sourceRow];
+                    double sf = M[destRow, sourceRow];
+                    for (int i = 0; i < rowCount + 1; i++)
+                        M[destRow, i] = M[destRow, i] * df - M[sourceRow, i] * sf;
+                }
+            }
+
+            // back-insertion
+            for (int row = rowCount - 1; row >= 0; row--)
+            {
+                double f = M[row, row];
+                if (f == 0) return false;
+
+                for (int i = 0; i < rowCount + 1; i++) M[row, i] /= f;
+                for (int destRow = 0; destRow < row; destRow++)
+                { M[destRow, rowCount] -= M[destRow, row] * M[row, rowCount]; M[destRow, row] = 0; }
+            }
+            return true;
         }
     }
 }

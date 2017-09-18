@@ -1,4 +1,5 @@
-﻿using System;
+﻿using MathNet.Numerics.LinearAlgebra;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -87,6 +88,7 @@ namespace bc_thesis
             Console.WriteLine($"Distance between the two atoms: {distance}\n");
             #endregion
 
+            #region First matrix solution method test
             Console.WriteLine("First matrix solution method:\n");
             Console.WriteLine("EEM Matrix:\n");
             double[,] matrix = BuildEEMMatrix(m);
@@ -97,11 +99,12 @@ namespace bc_thesis
                     Console.Write($"{Math.Round(matrix[i,j], 2)}\t");
                 }
                 Console.WriteLine();
-            }
-            
+            }            
             Console.WriteLine(ResolveMatrix(matrix, m.NumOfAtoms + 1, m.NumOfAtoms + 1));
             Console.WriteLine();
+            #endregion
 
+            #region Second matrix solution method test
             Console.WriteLine("Second matrix solution method:\n");
             Console.WriteLine("EEM Matrix:\n");
             double[,] matrix2 = BuildEEMMatrix2(m);
@@ -115,6 +118,38 @@ namespace bc_thesis
             }
             Console.WriteLine();
             Console.WriteLine(ResolveMatrix2(matrix2));
+            Console.WriteLine();
+            #endregion
+
+            #region Third matrix solution method test
+            Console.WriteLine("Third matrix solution method:\n");
+            Console.WriteLine("EEM Matrix:\n");
+            double[,] matrix3 = BuildEEMMatrix3(m);
+            for (int i = 0; i <= m.NumOfAtoms; i++)
+            {
+                for (int j = 0; j <= m.NumOfAtoms; j++)
+                {
+                    Console.Write($"{Math.Round(matrix3[i, j], 2)}\t");
+                }
+                Console.WriteLine();
+            }
+            Console.WriteLine();
+            var A = Matrix<double>.Build.DenseOfArray(matrix3);
+            var B = Vector<double>.Build.Dense(BuildEEMVector(m));
+            var X = A.Solve(B);
+            int count = 0;
+            foreach(double a in X)
+            {
+                if(count == m.NumOfAtoms)
+                {
+                    Console.Write($"X = {a}\n");
+                }else
+                {
+                    Console.Write($"x{count} = {a}\n");
+                }                
+                count++;
+            }
+            #endregion
 
             Console.ReadKey();
         }
@@ -433,6 +468,60 @@ namespace bc_thesis
             return arr;
         }
         
+        private static double[,] BuildEEMMatrix3(Molecule m)
+        {
+            int columns = m.NumOfAtoms + 1;
+            int rows = m.NumOfAtoms + 1;
+            double[,] arr = new double[rows, columns];
+            var atom = m.Atoms.ElementAt(0);
+            var param = elemParams.First(x => x.ElementName.Equals(atom.Symbol));
+            double k = param.Kappa;
+
+            for (int i = 0; i < rows; i++)
+            {
+                for (int j = 0; j < columns; j++)
+                {
+                    if (j == columns - 1)
+                    {
+                        arr[i, j] = -1;
+                    }
+                    else if (i == j)
+                    {
+                        var a = m.Atoms.First(x => x.ID == i + 1);
+                        var p = elemParams.First(x => x.ElementName.Equals(a.Symbol));
+                        arr[i, j] = p.B;
+                    }
+                    else if (i == rows - 1)
+                    {
+                        arr[i, j] = 1;
+                    }
+                    else
+                    {
+                        var a1 = m.Atoms.First(x => x.ID == i + 1);
+                        var a2 = m.Atoms.First(x => x.ID == j + 1);
+                        arr[i, j] = k / (CalculateDistance(a1, a2));
+                    }
+                }
+            }
+            arr[rows - 1, columns - 1] = 0;
+            return arr;
+        }
+
+        //TODO Q value (perhaps X value as well?)
+        private static double[] BuildEEMVector(Molecule m)
+        {
+            double[] vector = new double[m.NumOfAtoms + 1];
+            int count = 0;
+            foreach (Atom a in m.Atoms)
+            {
+                var p = elemParams.First(x => x.ElementName.Equals(a.Symbol));
+                vector[count] = -(p.A);
+                count++;
+            }
+            vector[count] = 1;//should be Q, for now 1
+            return vector;
+        }
+
         private static string ResolveMatrix(double[,] matrix, int num_rows, int num_cols)
         {
             const double tiny = 0.00001;

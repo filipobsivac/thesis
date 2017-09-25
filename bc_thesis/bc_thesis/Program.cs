@@ -25,9 +25,13 @@ namespace bc_thesis
             LoadMolecules(sdfFilePath);            
             string paramsFilePath = Path.Combine(Environment.CurrentDirectory, items[1]);
             LoadParameters(paramsFilePath);
-
-            string outputFilePath = Path.Combine(Environment.CurrentDirectory, items[2]);
-            SolveEEM(outputFilePath);
+            string outputFilePath = Path.Combine(Environment.CurrentDirectory, items[3]);
+            switch (items[2]){
+                case "eem": SolveEEM(outputFilePath); break;
+                case "mg": break;
+                case "og": break;
+                default: break;
+            }           
             
             #region EEM Matrix solution test
             Console.WriteLine("EEM Matrix:\n");

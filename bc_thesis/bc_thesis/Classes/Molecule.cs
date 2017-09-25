@@ -10,7 +10,8 @@ namespace thesis.Classes
         public int NSC { get; set; }
         public int NumOfAtoms { get; set; }
         public int NumOfBonds { get; set; }
-        public double Electronegativity { get; set; }
+        public int Charge { get; set; }
+        public double Electronegativity { get; set; }        
         public List<Atom> Atoms { get; set; }
 
         public Molecule()

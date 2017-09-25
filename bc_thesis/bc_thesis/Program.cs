@@ -18,134 +18,45 @@ namespace bc_thesis
 
         static void Main(string[] args)
         {
-            #region Data loading test
-            string path;                
-            path = @"C:\Users\Filip\MUNI\THESIS\bc_thesis\bc_thesis\TestFiles\ElemBond.txt";
-            LoadParameters(path);
-            Console.WriteLine("Element parameters with specified bonds:");
-            Console.WriteLine();
-            Console.WriteLine("Symbol\tBond\tA\tB\tKappa");
-            foreach (ElementParameters e in elemParams)
-            {
-                Console.WriteLine($"{e.ElementName}\t{e.BondType}\t{e.A}\t{e.B}\t{e.Kappa}");                
-            }
-            Console.WriteLine();
-
-            path = @"C:\Users\Filip\MUNI\THESIS\bc_thesis\bc_thesis\TestFiles\Element.txt";
-            LoadParameters(path);
-            Console.WriteLine("Element parameters without specified bonds:");
-            Console.WriteLine();
-            Console.WriteLine("Symbol\tA\tB\tKappa");
-            foreach (ElementParameters e in elemParams)
-            {
-                Console.WriteLine($"{e.ElementName}\t{e.A}\t{e.B}\t{e.Kappa}");
-            }
-            Console.WriteLine();
-
-            path = @"C:\Users\Filip\MUNI\THESIS\bc_thesis\bc_thesis\TestFiles\set01.sdf";
-            LoadMolecules(path);
-            Console.WriteLine($"Number of molecules: {molecules.Count}");
-            Console.WriteLine();
-
-            Console.WriteLine("First Molecule:");
-            Console.WriteLine();
-            Console.WriteLine("NSC\tAtoms\tBonds");
+            Console.WriteLine("sdfFileName paramsFileName outputFileName");
+            string arguments = Console.ReadLine();
+            string[] items = arguments.Split(' ');
+            string sdfFilePath = Path.Combine(Environment.CurrentDirectory, items[0]);
+            LoadMolecules(sdfFilePath);            
+            string paramsFilePath = Path.Combine(Environment.CurrentDirectory, items[1]);
+            LoadParameters(paramsFilePath);
+            string outputFilePath = Path.Combine(Environment.CurrentDirectory, items[2]);
+            SolveEEM(outputFilePath);
+            
+            #region EEM Matrix solution test
+            Console.WriteLine("EEM Matrix:\n");
             var m = molecules.ElementAt(0);
-            Console.WriteLine($"{m.NSC}\t{m.NumOfAtoms}\t{m.NumOfBonds}");
-            Console.WriteLine();
-
-            Console.WriteLine("Atoms in molecule:");
-            Console.WriteLine();
-            Console.WriteLine("ID\tSymbol\tX\tY\tZ\tBonds");
-            foreach(Atom a in m.Atoms)
-            {
-                Console.WriteLine($"{a.ID}\t{a.Symbol}\t{a.X}\t{a.Y}\t{a.Z}\t{a.Bonds.Count}");
-            }
-            Console.WriteLine();
-
-            Console.WriteLine("First atom's bonds:");
-            Console.WriteLine();
-            Console.WriteLine("1st\t2nd\tType");
-            var atom = m.Atoms.ElementAt(0);
-            var bonds = atom.Bonds;
-            foreach(KeyValuePair<int, int> b in bonds)
-            {
-                Console.WriteLine($"{atom.ID}\t{b.Key}\t{b.Value}"); 
-            }
-            Console.WriteLine();
-            #endregion
-
-            #region Distance calculating test
-            Console.WriteLine("Distance between the first and second atoms:\n");
-            Console.WriteLine("First atom coordinates:");
-            Console.WriteLine("X\tY\tZ");
-            Console.WriteLine($"{atom.X}\t{atom.Y}\t{atom.Z}\n");
-            Console.WriteLine("Second atom coordinates:");
-            Console.WriteLine("X\tY\tZ");
-            var atom2 = m.Atoms.ElementAt(1);
-            Console.WriteLine($"{atom2.X}\t{atom2.Y}\t{atom2.Z}\n");
-            double distance = CalculateDistance(atom, atom2);
-            Console.WriteLine($"Distance between the two atoms: {distance}\n");
-            #endregion
-
-            #region First matrix solution method test
-            Console.WriteLine("First matrix solution method:\n");
-            Console.WriteLine("EEM Matrix:\n");
             double[,] matrix = BuildEEMMatrix(m);
-            for(int i = 0; i <= m.NumOfAtoms; i++)
-            {
-                for(int j = 0; j <= m.NumOfAtoms + 2; j++)
-                {
-                    Console.Write($"{Math.Round(matrix[i,j], 2)}\t");
-                }
-                Console.WriteLine();
-            }            
-            Console.WriteLine(ResolveMatrix(matrix, m.NumOfAtoms + 1, m.NumOfAtoms + 1));
-            Console.WriteLine();
-            #endregion
-
-            #region Second matrix solution method test
-            Console.WriteLine("Second matrix solution method:\n");
-            Console.WriteLine("EEM Matrix:\n");
-            double[,] matrix2 = BuildEEMMatrix2(m);
-            for (int i = 0; i <= m.NumOfAtoms; i++)
-            {
-                for (int j = 0; j <= m.NumOfAtoms + 1; j++)
-                {
-                    Console.Write($"{Math.Round(matrix2[i, j], 2)}\t");
-                }
-                Console.WriteLine();
-            }
-            Console.WriteLine();
-            Console.WriteLine(ResolveMatrix2(matrix2));
-            Console.WriteLine();
-            #endregion
-
-            #region Third matrix solution method test
-            Console.WriteLine("Third matrix solution method:\n");
-            Console.WriteLine("EEM Matrix:\n");
-            double[,] matrix3 = BuildEEMMatrix3(m);
             for (int i = 0; i <= m.NumOfAtoms; i++)
             {
                 for (int j = 0; j <= m.NumOfAtoms; j++)
                 {
-                    Console.Write($"{Math.Round(matrix3[i, j], 2)}\t");
+                    Console.Write($"{Math.Round(matrix[i, j], 2)}\t");
                 }
                 Console.WriteLine();
             }
             Console.WriteLine();
-            var A = Matrix<double>.Build.DenseOfArray(matrix3);
+            var A = Matrix<double>.Build.DenseOfArray(matrix);
             var B = Vector<double>.Build.Dense(BuildEEMVector(m));
             var X = A.Solve(B);
             int count = 0;
+            Console.WriteLine("Results:\n");
             foreach(double a in X)
             {
-                if(count == m.NumOfAtoms)
+                if(count != m.NumOfAtoms)
                 {
-                    Console.Write($"X = {a}\n");
-                }else
-                {
-                    Console.Write($"x{count} = {a}\n");
+                    if(a >= 0)
+                    {
+                        Console.WriteLine($"{count + 1}\t{m.Atoms[count].Symbol}\t {Math.Round(a, 6)}");
+                    }else
+                    {
+                        Console.WriteLine($"{count + 1}\t{m.Atoms[count].Symbol}\t{Math.Round(a, 6)}");
+                    }                    
                 }                
                 count++;
             }
@@ -217,17 +128,17 @@ namespace bc_thesis
                     string[] items = line.Split('_');
                     molecule.NSC = int.Parse(items[1]);
                 }
-                else if(lineNum <= 3)
+                else if (lineNum <= 3)
                 {
                     lineNum++;
                 }
-                else if(lineNum == 4)
+                else if (lineNum == 4)
                 {
                     molecule.NumOfAtoms = int.Parse(line.Substring(0, 3));
                     molecule.NumOfBonds = int.Parse(line.Substring(3, 3));
                     lineNum++;
                 }
-                else if(lineNum <= molecule.NumOfAtoms + 4)
+                else if (lineNum <= molecule.NumOfAtoms + 4)
                 {
                     Atom atom = new Atom(
                         lineNum - 4,
@@ -237,14 +148,15 @@ namespace bc_thesis
                         double.Parse(line.Substring(20, 10), CultureInfo.InvariantCulture));
                     molecule.Atoms.Add(atom);
                     lineNum++;
-                }   
-                else if (lineNum <= molecule.NumOfAtoms + molecule.NumOfBonds + 4){
+                }
+                else if (lineNum <= molecule.NumOfAtoms + molecule.NumOfBonds + 4) {
                     var firstAtom = molecule.Atoms.Find(a => a.ID == int.Parse(line.Substring(0, 3)));
                     firstAtom.Bonds.Add(
-                        int.Parse(line.Substring(3, 3)), 
+                        int.Parse(line.Substring(3, 3)),
                         int.Parse(line.Substring(6, 3)));
                     lineNum++;
-                }else if (line.Equals("$$$$"))
+                }
+                else if (line.Equals("$$$$"))
                 {
                     lineNum = 1;
                     molecules.Add(molecule);
@@ -372,103 +284,8 @@ namespace bc_thesis
                 default: return 0;
             }
         }
-
-        //TODO Q value (perhaps X value as well?)
-        private static double[,] BuildEEMMatrix(Molecule m)
-        {
-            int columns = m.NumOfAtoms + 3;
-            int rows = m.NumOfAtoms + 1;
-            double[,] arr = new double[rows, columns];
-            var atom = m.Atoms.ElementAt(0);
-            var param = elemParams.First(x => x.ElementName.Equals(atom.Symbol));
-            double k = param.Kappa;
-
-            for (int i = 0; i < rows - 1; i++)
-            {
-                for (int j = 0; j < columns - 1; j++)
-                {
-                    if (j == columns - 2)
-                    {
-                        var a = m.Atoms.First(x => x.ID == i + 1);
-                        var p = elemParams.First(x => x.ElementName.Equals(a.Symbol));
-                        arr[i, j] = -(p.A);
-                    }
-                    else if (j == columns - 3)
-                    {
-                        arr[i, j] = -1;
-                    }
-                    else if(i == j)
-                    {
-                        var a = m.Atoms.First(x => x.ID == i + 1);
-                        var p = elemParams.First(x => x.ElementName.Equals(a.Symbol));
-                        arr[i, j] = p.B;
-                    }else
-                    {
-                        var a1 = m.Atoms.First(x => x.ID == i + 1);
-                        var a2 = m.Atoms.First(x => x.ID == j + 1);
-                        arr[i, j] = k / (CalculateDistance(a1, a2));
-                    }
-                }
-                arr[i, columns - 1] = 0;
-            }
-            for(int i = 0; i < columns - 3; i++)
-            {
-                arr[rows - 1, i] = 1;
-            }
-            arr[rows - 1, columns - 3] = 0;
-            arr[rows - 1, columns - 2] = 1;//should be Q, for now 1
-            arr[rows - 1, columns - 1] = 0;
-            return arr;
-        }
-
-        //TODO Q value (perhaps X value as well?)
-        private static double[,] BuildEEMMatrix2(Molecule m)
-        {
-            int columns = m.NumOfAtoms + 2;
-            int rows = m.NumOfAtoms + 1;
-            double[,] arr = new double[rows, columns];
-            var atom = m.Atoms.ElementAt(0);
-            var param = elemParams.First(x => x.ElementName.Equals(atom.Symbol));
-            double k = param.Kappa;
-
-            for (int i = 0; i < rows - 1; i++)
-            {
-                for (int j = 0; j < columns; j++)
-                {
-                    if (j == columns - 1)
-                    {
-                        var a = m.Atoms.First(x => x.ID == i + 1);
-                        var p = elemParams.First(x => x.ElementName.Equals(a.Symbol));
-                        arr[i, j] = -(p.A);
-                    }
-                    else if (j == columns - 2)
-                    {
-                        arr[i, j] = -1;
-                    }
-                    else if (i == j)
-                    {
-                        var a = m.Atoms.First(x => x.ID == i + 1);
-                        var p = elemParams.First(x => x.ElementName.Equals(a.Symbol));
-                        arr[i, j] = p.B;
-                    }
-                    else
-                    {
-                        var a1 = m.Atoms.First(x => x.ID == i + 1);
-                        var a2 = m.Atoms.First(x => x.ID == j + 1);
-                        arr[i, j] = k / (CalculateDistance(a1, a2));
-                    }
-                }
-            }
-            for (int i = 0; i < columns - 2; i++)
-            {
-                arr[rows - 1, i] = 1;
-            }
-            arr[rows - 1, columns - 2] = 0;
-            arr[rows - 1, columns - 1] = 1;//should be Q, for now 1
-            return arr;
-        }
         
-        private static double[,] BuildEEMMatrix3(Molecule m)
+        private static double[,] BuildEEMMatrix(Molecule m)
         {
             int columns = m.NumOfAtoms + 1;
             int rows = m.NumOfAtoms + 1;
@@ -488,8 +305,17 @@ namespace bc_thesis
                     else if (i == j)
                     {
                         var a = m.Atoms.First(x => x.ID == i + 1);
-                        var p = elemParams.First(x => x.ElementName.Equals(a.Symbol));
-                        arr[i, j] = p.B;
+                        var pars = elemParams.FindAll(x => x.ElementName.Equals(a.Symbol));
+                        double B = 0;
+                        int max = 0;
+                        foreach(var p in pars)
+                        {
+                            if(p.BondType >= max)
+                            {
+                                B = p.B;
+                            }
+                        }
+                        arr[i, j] = B;
                     }
                     else if (i == rows - 1)
                     {
@@ -499,7 +325,7 @@ namespace bc_thesis
                     {
                         var a1 = m.Atoms.First(x => x.ID == i + 1);
                         var a2 = m.Atoms.First(x => x.ID == j + 1);
-                        arr[i, j] = k / (CalculateDistance(a1, a2));
+                        arr[i, j] = (k / (CalculateDistance(a1, a2)));
                     }
                 }
             }
@@ -507,180 +333,60 @@ namespace bc_thesis
             return arr;
         }
 
-        //TODO Q value (perhaps X value as well?)
         private static double[] BuildEEMVector(Molecule m)
         {
             double[] vector = new double[m.NumOfAtoms + 1];
             int count = 0;
             foreach (Atom a in m.Atoms)
             {
-                var p = elemParams.First(x => x.ElementName.Equals(a.Symbol));
-                vector[count] = -(p.A);
+                var pars = elemParams.FindAll(x => x.ElementName.Equals(a.Symbol));
+                double A = 0;
+                int max = 0;
+                foreach (var p in pars)
+                {
+                    if (p.BondType >= max)
+                    {
+                        A = p.A;
+                    }
+                }
+                vector[count] = -A;
                 count++;
             }
-            vector[count] = 1;//should be Q, for now 1
+            vector[count] = 0;//Q
             return vector;
         }
 
-        private static string ResolveMatrix(double[,] matrix, int num_rows, int num_cols)
+        private static void SolveEEM(string outputFilePath)
         {
-            const double tiny = 0.00001;
-            string txt = "";
-
-            double[,] arr = matrix;
-            double[,] orig_arr = matrix;
-
-            // Start solving.
-            for (int r = 0; r < num_rows - 1; r++)
+            using (StreamWriter file = new StreamWriter(outputFilePath))
             {
-                // Zero out all entries in column r after this row.
-                // See if this row has a non-zero entry in column r.
-                if (Math.Abs(arr[r, r]) < tiny)
+                foreach(Molecule molecule in molecules)
                 {
-                    // Too close to zero. Try to swap with a later row.
-                    for (int r2 = r + 1; r2 < num_rows; r2++)
+                    double[,] m = BuildEEMMatrix(molecule);
+                    var matrix = Matrix<double>.Build.DenseOfArray(m);
+                    var vector = Vector<double>.Build.Dense(BuildEEMVector(molecule));
+                    var results = matrix.Solve(vector);
+                    file.WriteLine($"NSC_{molecule.NSC}");
+                    file.WriteLine(molecule.NumOfAtoms);
+                    int count = 0;
+                    foreach(double charge in results)
                     {
-                        if (Math.Abs(arr[r2, r]) > tiny)
+                        if(count != molecule.NumOfAtoms)
                         {
-                            // This row will work. Swap them.
-                            for (int c = 0; c <= num_cols; c++)
+                            molecule.Atoms[count].Charge = charge;
+                            if(charge >= 0)
                             {
-                                double tmp = arr[r, c];
-                                arr[r, c] = arr[r2, c];
-                                arr[r2, c] = tmp;
-                            }
-                            break;
+                                file.WriteLine($"{count + 1}\t{molecule.Atoms[count].Symbol}\t {charge}");
+                            }else
+                            {
+                                file.WriteLine($"{count + 1}\t{molecule.Atoms[count].Symbol}\t{charge}");
+                            }                            
+                            count++;
                         }
                     }
-                }
-
-                // If this row has a non-zero entry in column r, use it.
-                if (Math.Abs(arr[r, r]) > tiny)
-                {
-                    // Zero out this column in later rows.
-                    for (int r2 = r + 1; r2 < num_rows; r2++)
-                    {
-                        double factor = -arr[r2, r] / arr[r, r];
-                        for (int c = r; c <= num_cols; c++)
-                        {
-                            arr[r2, c] = arr[r2, c] + factor * arr[r, c];
-                        }
-                    }
-                }
+                    file.WriteLine("$$$$");
+                }                
             }
-
-            // See if we have a solution.
-            if (arr[num_rows - 1, num_cols - 1] == 0)
-            {
-                // We have no solution.
-                // See if all of the entries in this row are 0.
-                bool all_zeros = true;
-                for (int c = 0; c <= num_cols + 1; c++)
-                {
-                    if (arr[num_rows - 1, c] != 0)
-                    {
-                        all_zeros = false;
-                        break;
-                    }
-                }
-                if (all_zeros)
-                {
-                    txt = "The solution is not unique";
-                }
-                else
-                {
-                    txt = "There is no solution";
-                }
-            }
-            else
-            {
-                // Backsolve.
-                for (int r = num_rows - 1; r >= 0; r--)
-                {
-                    double tmp = arr[r, num_cols];
-                    for (int r2 = r + 1; r2 < num_rows; r2++)
-                    {
-                        tmp -= arr[r, r2] * arr[r2, num_cols + 1];
-                    }
-                    arr[r, num_cols + 1] = tmp / arr[r, r];
-                }
-
-                // Display the results.
-                txt = "       Values:";
-                for (int r = 0; r < num_rows; r++)
-                {
-                    txt += "\r\nx" + r.ToString() + " = " +
-                        arr[r, num_cols + 1].ToString();
-                }
-
-                // Verify.
-                txt += "\r\n    Check:";
-                for (int r = 0; r < num_rows; r++)
-                {
-                    double tmp = 0;
-                    for (int c = 0; c < num_cols; c++)
-                    {
-                        tmp += orig_arr[r, c] * arr[c, num_cols + 1];
-                    }
-                    txt += "\r\n" + tmp.ToString();
-                }
-
-                txt = txt.Substring("\r\n".Length + 1);
-            }
-
-            return txt;
-        }
-
-        private static bool ResolveMatrix2(double[,] M)
-        {
-            // input checks
-            int rowCount = M.GetUpperBound(0) + 1;
-            if (M == null || M.Length != rowCount * (rowCount + 1))
-                throw new ArgumentException("The algorithm must be provided with a (n x n+1) matrix.");
-            if (rowCount < 1)
-                throw new ArgumentException("The matrix must at least have one row.");
-
-            // pivoting
-            for (int col = 0; col + 1 < rowCount; col++) if (M[col, col] == 0)
-                // check for zero coefficients
-                {
-                    // find non-zero coefficient
-                    int swapRow = col + 1;
-                    for (; swapRow < rowCount; swapRow++) if (M[swapRow, col] != 0) break;
-
-                    if (M[swapRow, col] != 0) // found a non-zero coefficient?
-                    {
-                        // yes, then swap it with the above
-                        double[] tmp = new double[rowCount + 1];
-                        for (int i = 0; i < rowCount + 1; i++)
-                        { tmp[i] = M[swapRow, i]; M[swapRow, i] = M[col, i]; M[col, i] = tmp[i]; }
-                    }
-                    else return false; // no, then the matrix has no unique solution
-                }
-
-            // elimination
-            for (int sourceRow = 0; sourceRow + 1 < rowCount; sourceRow++)
-            {
-                for (int destRow = sourceRow + 1; destRow < rowCount; destRow++)
-                {
-                    double df = M[sourceRow, sourceRow];
-                    double sf = M[destRow, sourceRow];
-                    for (int i = 0; i < rowCount + 1; i++)
-                        M[destRow, i] = M[destRow, i] * df - M[sourceRow, i] * sf;
-                }
-            }
-
-            // back-insertion
-            for (int row = rowCount - 1; row >= 0; row--)
-            {
-                double f = M[row, row];
-                if (f == 0) return false;
-
-                for (int i = 0; i < rowCount + 1; i++) M[row, i] /= f;
-                for (int destRow = 0; destRow < row; destRow++)
-                { M[destRow, rowCount] -= M[destRow, row] * M[row, rowCount]; M[destRow, row] = 0; }
-            }
-            return true;
         }
     }
 }

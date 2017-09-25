@@ -18,13 +18,14 @@ namespace bc_thesis
 
         static void Main(string[] args)
         {
-            Console.WriteLine("sdfFileName paramsFileName outputFileName");
+            Console.WriteLine("sdfFileName paramsFileName methodName outputFileName");
             string arguments = Console.ReadLine();
             string[] items = arguments.Split(' ');
             string sdfFilePath = Path.Combine(Environment.CurrentDirectory, items[0]);
             LoadMolecules(sdfFilePath);            
             string paramsFilePath = Path.Combine(Environment.CurrentDirectory, items[1]);
             LoadParameters(paramsFilePath);
+
             string outputFilePath = Path.Combine(Environment.CurrentDirectory, items[2]);
             SolveEEM(outputFilePath);
             
@@ -387,6 +388,50 @@ namespace bc_thesis
                     file.WriteLine("$$$$");
                 }                
             }
+        }
+
+        private static double[,] BuildDegreeMatrix(Molecule m)
+        {
+            double[,] arr = new double[m.NumOfAtoms, m.NumOfAtoms];
+
+            for (int i = 0; i < m.Atoms.Count; i++)
+            {
+                int rank = 0;
+                foreach (var b in m.Atoms[i].Bonds)
+                {
+                    rank += b.Value;
+                }
+                arr[i, i] = rank;
+            }            
+
+            return arr;
+        }
+
+        private static double[,] BuildConnectivityMatrix(Molecule m)
+        {
+            double[,] arr = new double[m.NumOfAtoms, m.NumOfAtoms];
+
+            for(int i = 0; i < m.NumOfAtoms; i++)
+            {
+                foreach (var b in m.Atoms[i].Bonds)
+                {
+                    arr[i, b.Key] = b.Value;
+                }
+            }
+
+            return arr;
+        }
+
+        private static double[,] BuildIdentityMatrix(Molecule m)
+        {
+            double[,] arr = new double[m.NumOfAtoms, m.NumOfAtoms];
+
+            for(int i = 0; i < m.NumOfAtoms; i++)
+            {
+                arr[i, i] = 1;
+            }
+
+            return arr;
         }
     }
 }

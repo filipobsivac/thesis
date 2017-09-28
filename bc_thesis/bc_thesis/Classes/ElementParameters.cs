@@ -13,14 +13,12 @@ namespace thesis.Classes
         public int BondType { get; set; }
         public double A { get; set; }
         public double B { get; set; }
-        public double Kappa { get; set; }
 
-        public ElementParameters(string elemName, double a, double b, double kappa, int bondType = 0)
+        public ElementParameters(string elemName, double a, double b, int bondType = 0)
         {
             ElementName = elemName;
             A = a;
             B = b;
-            Kappa = kappa;
             BondType = bondType;
         }
     }

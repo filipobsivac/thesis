@@ -16,7 +16,7 @@ namespace thesis.Classes
         public double Electronegativity { get; set; }
         public double Charge { get; set; }
 
-        //<bonded atom ID, bond type>
+        // <bonded atom ID, bond type>       
         public Dictionary<int, int> Bonds { get; set; }
 
         public Atom(int id, string symbol, double x, double y, double z)

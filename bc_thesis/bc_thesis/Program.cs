@@ -14,55 +14,163 @@ namespace bc_thesis
     class Program
     {
         private static List<ElementParameters> elemParams;
+        private static bool paramBonds;
+        private static double kappa;
         private static List<Molecule> molecules;
 
         static void Main(string[] args)
         {
+            // ..\..\TestFiles\set01.sdf ..\..\TestFiles\ElemBond.txt eem ..\..\outEEM.txt
+            // ..\..\TestFiles\set01.sdf ..\..\TestFiles\Element.txt eem ..\..\outEEM.txt
+            // ..\..\TestFiles\set01.sdf ..\..\TestFiles\ElemBond.txt mg ..\..\outMG.txt
+            // ..\..\TestFiles\set01.sdf ..\..\TestFiles\Element.txt mg ..\..\outMG.txt
+            // ..\..\TestFiles\acetonitrile.sdf ..\..\TestFiles\ElemBond.txt mg ..\..\outMG.txt
+            // ..\..\TestFiles\acetonitrile.sdf ..\..\TestFiles\Element.txt mg ..\..\outMG.txt
             Console.WriteLine("sdfFileName paramsFileName methodName outputFileName");
             string arguments = Console.ReadLine();
             string[] items = arguments.Split(' ');
-            string sdfFilePath = Path.Combine(Environment.CurrentDirectory, items[0]);
+            string sdfFilePath = Path.GetFullPath(Path.Combine(Environment.CurrentDirectory, items[0]));
             LoadMolecules(sdfFilePath);            
-            string paramsFilePath = Path.Combine(Environment.CurrentDirectory, items[1]);
+            string paramsFilePath = Path.GetFullPath(Path.Combine(Environment.CurrentDirectory, items[1]));
             LoadParameters(paramsFilePath);
-            string outputFilePath = Path.Combine(Environment.CurrentDirectory, items[3]);
+
+            string outputFilePath = Path.GetFullPath(Path.Combine(Environment.CurrentDirectory, items[3]));
             switch (items[2]){
                 case "eem": SolveEEM(outputFilePath); break;
-                case "mg": break;
+                case "mg": SolveMG(outputFilePath); break;
                 case "og": break;
                 default: break;
-            }           
+            }
+
+
+            var m = molecules.ElementAt(0);
             
             #region EEM Matrix solution test
+            /*
             Console.WriteLine("EEM Matrix:\n");
-            var m = molecules.ElementAt(0);
-            double[,] matrix = BuildEEMMatrix(m);
+            double[,] matrix = BuildEEMMatrix(m);            
             for (int i = 0; i <= m.NumOfAtoms; i++)
             {
                 for (int j = 0; j <= m.NumOfAtoms; j++)
                 {
-                    Console.Write($"{Math.Round(matrix[i, j], 2)}\t");
+                    Console.Write("{0,6:F2}", matrix[i, j]);
                 }
                 Console.WriteLine();
             }
             Console.WriteLine();
-            var A = Matrix<double>.Build.DenseOfArray(matrix);
-            var B = Vector<double>.Build.Dense(BuildEEMVector(m));
-            var X = A.Solve(B);
+            var m1 = Matrix<double>.Build.DenseOfArray(matrix);
+            var v1 = Vector<double>.Build.Dense(BuildEEMVector(m));
+            Console.WriteLine("EEM Vector:\n");
             int count = 0;
+            foreach (double a in v1)
+            {
+                Console.Write("{0,-4}", count + 1);
+                Console.WriteLine("{0,7:F4}", a);
+                count++;
+            }
+            Console.WriteLine();
+            var X = m1.Solve(v1);
+            count = 0;
             Console.WriteLine("Results:\n");
             foreach(double a in X)
             {
                 if(count != m.NumOfAtoms)
-                {
-                    if(a >= 0)
-                    {
-                        Console.WriteLine($"{count + 1}\t{m.Atoms[count].Symbol}\t {Math.Round(a, 6)}");
-                    }else
-                    {
-                        Console.WriteLine($"{count + 1}\t{m.Atoms[count].Symbol}\t{Math.Round(a, 6)}");
-                    }                    
+                {                    
+                    Console.Write("{0,-4}", count + 1);
+                    Console.WriteLine("{0,9:F6}", a);
                 }                
+                count++;
+            }
+            */
+            #endregion
+
+            #region MG Matrix solution test   
+            var D = Matrix<double>.Build.DenseOfArray(BuildDegreeMatrix(m));
+            var A = Matrix<double>.Build.DenseOfArray(BuildConnectivityMatrix(m));
+            var I = Matrix<double>.Build.DenseOfArray(BuildIdentityMatrix(m));
+            var V = Vector<double>.Build.Dense(BuildMGVector(m));
+            double avgEN = CountGeometricAverageEN(V);
+            Matrix<double> S = D - A + I;
+            var X = S.Solve(V);
+            var deltaX = X - V;
+            var results = deltaX * (1.0 / CountGeometricAverageEN(V));
+
+            Console.WriteLine("D matrix:\n");
+            for (int i = 0; i < m.NumOfAtoms; i++)
+            {
+                for (int j = 0; j < m.NumOfAtoms; j++)
+                {
+                    Console.Write("{0,3}", D[i, j]);
+                }
+                Console.WriteLine();
+            }
+
+            Console.WriteLine();
+            Console.WriteLine("A matrix:\n");
+            for (int i = 0; i < m.NumOfAtoms; i++)
+            {
+                for (int j = 0; j < m.NumOfAtoms; j++)
+                {
+                    Console.Write("{0,3}", A[i, j]);
+                }
+                Console.WriteLine();
+            }
+
+            Console.WriteLine();
+            Console.WriteLine("I matrix:\n");
+            for (int i = 0; i < m.NumOfAtoms; i++)
+            {
+                for (int j = 0; j < m.NumOfAtoms; j++)
+                {
+                    Console.Write("{0,3}", I[i, j]);
+                }
+                Console.WriteLine();
+            }
+
+            Console.WriteLine();
+            Console.WriteLine("S matrix:\n");
+            for (int i = 0; i < m.NumOfAtoms; i++)
+            {
+                for (int j = 0; j < m.NumOfAtoms; j++)
+                {
+                    Console.Write("{0,3}", S[i, j]);
+                }
+                Console.WriteLine();
+            }
+
+            Console.WriteLine("Vector:\n");
+            foreach(double val in V)
+            {
+                Console.Write("{0,6}", val);
+            }
+            Console.WriteLine();
+
+            Console.WriteLine("X vector:\n");
+            foreach (double val in X)
+            {
+                Console.Write("{0,6:F2}", val);
+            }
+
+            Console.WriteLine();
+            Console.WriteLine("deltaX matrix:\n");
+            foreach (double val in deltaX)
+            {
+                Console.Write("{0,6:F2}", val);
+            }
+            Console.WriteLine();            
+
+            Console.WriteLine();
+            Console.WriteLine($"Geometric average of electronegativities: {avgEN}\n");
+       
+            Console.WriteLine("Results:\n");
+            int count = 0;
+            foreach (double charge in results)
+            {
+                if (count != m.NumOfAtoms)
+                {
+                    Console.Write("{0,-4}", count + 1);
+                    Console.WriteLine("{0,9:F6}", charge);
+                }
                 count++;
             }
             #endregion
@@ -76,8 +184,6 @@ namespace bc_thesis
             StreamReader reader = File.OpenText(fileName);
             string line;
             bool firstLine = true;
-            bool bonds = true;
-            double kappa = 0;
 
             while ((line = reader.ReadLine()) != null)
             {
@@ -88,20 +194,22 @@ namespace bc_thesis
                     kappa = double.Parse(items[1], CultureInfo.InvariantCulture);
                     if (items[0].Equals("Element"))
                     {
-                        bonds = false;
+                        paramBonds = false;
+                    }else
+                    {
+                        paramBonds = true;
                     }
                     continue;
                 }
 
                 string[] param = line.Split(' ');
                 ElementParameters parameters;
-                if (bonds)
+                if (paramBonds)
                 {
                     parameters = new ElementParameters(
                         param[0], 
                         double.Parse(param[2], CultureInfo.InvariantCulture), 
                         double.Parse(param[3], CultureInfo.InvariantCulture), 
-                        kappa, 
                         int.Parse(param[1]));
                 }
                 else
@@ -109,8 +217,8 @@ namespace bc_thesis
                     parameters = new ElementParameters(
                         param[0], 
                         double.Parse(param[1], CultureInfo.InvariantCulture), 
-                        double.Parse(param[2], CultureInfo.InvariantCulture), 
-                        kappa);
+                        double.Parse(param[2], CultureInfo.InvariantCulture)
+                        );
                 }
 
                 elemParams.Add(parameters);
@@ -290,47 +398,63 @@ namespace bc_thesis
             }
         }
         
+        private static int GetHighestBondType(Molecule m, Atom a)
+        {
+            int bond = 0;
+
+            if (!paramBonds) return bond;
+
+            foreach(var b in a.Bonds)
+            {
+                if (b.Value > bond)
+                {
+                    bond = b.Value;
+                }
+            }
+
+            foreach(var atom in m.Atoms)
+            {
+                foreach(KeyValuePair<int, int> b in atom.Bonds)
+                {
+                    if (b.Key == a.ID && b.Value > bond)
+                    {
+                        
+                        bond = b.Value;
+                    }
+                }
+            }
+
+            return bond;
+        }
+
         private static double[,] BuildEEMMatrix(Molecule m)
         {
             int columns = m.NumOfAtoms + 1;
             int rows = m.NumOfAtoms + 1;
             double[,] arr = new double[rows, columns];
-            var atom = m.Atoms.ElementAt(0);
-            var param = elemParams.First(x => x.ElementName.Equals(atom.Symbol));
-            double k = param.Kappa;
 
             for (int i = 0; i < rows; i++)
             {
                 for (int j = 0; j < columns; j++)
                 {
                     if (j == columns - 1)
-                    {
                         arr[i, j] = -1;
-                    }
                     else if (i == j)
                     {
                         var a = m.Atoms.First(x => x.ID == i + 1);
-                        var pars = elemParams.FindAll(x => x.ElementName.Equals(a.Symbol));
-                        double B = 0;
-                        int max = 0;
-                        foreach(var p in pars)
-                        {
-                            if(p.BondType >= max)
-                            {
-                                B = p.B;
-                            }
-                        }
-                        arr[i, j] = B;
+                        ElementParameters pars;
+                        pars = elemParams.First(x =>
+                        x.ElementName.Equals(a.Symbol) &&
+                        x.BondType == GetHighestBondType(m, a));
+                        arr[i, j] = pars.B;
                     }
                     else if (i == rows - 1)
-                    {
                         arr[i, j] = 1;
-                    }
                     else
                     {
                         var a1 = m.Atoms.First(x => x.ID == i + 1);
                         var a2 = m.Atoms.First(x => x.ID == j + 1);
-                        arr[i, j] = (k / (CalculateDistance(a1, a2)));
+                        arr[i, j] = (kappa / (CalculateDistance(a1, a2)));
                     }
                 }
             }
@@ -344,17 +468,11 @@ namespace bc_thesis
             int count = 0;
             foreach (Atom a in m.Atoms)
             {
-                var pars = elemParams.FindAll(x => x.ElementName.Equals(a.Symbol));
-                double A = 0;
-                int max = 0;
-                foreach (var p in pars)
-                {
-                    if (p.BondType >= max)
-                    {
-                        A = p.A;
-                    }
-                }
-                vector[count] = -A;
+                ElementParameters pars;
+                pars = elemParams.First(x =>
+                x.ElementName.Equals(a.Symbol) &&
+                x.BondType == GetHighestBondType(m, a));
+                vector[count] = -pars.A;
                 count++;
             }
             vector[count] = 0;//Q
@@ -367,10 +485,10 @@ namespace bc_thesis
             {
                 foreach(Molecule molecule in molecules)
                 {
-                    double[,] m = BuildEEMMatrix(molecule);
-                    var matrix = Matrix<double>.Build.DenseOfArray(m);
+                    var matrix = Matrix<double>.Build.DenseOfArray(BuildEEMMatrix(molecule));
                     var vector = Vector<double>.Build.Dense(BuildEEMVector(molecule));
                     var results = matrix.Solve(vector);
+
                     file.WriteLine($"NSC_{molecule.NSC}");
                     file.WriteLine(molecule.NumOfAtoms);
                     int count = 0;
@@ -378,14 +496,10 @@ namespace bc_thesis
                     {
                         if(count != molecule.NumOfAtoms)
                         {
-                            molecule.Atoms[count].Charge = charge;
-                            if(charge >= 0)
-                            {
-                                file.WriteLine($"{count + 1}\t{molecule.Atoms[count].Symbol}\t {charge}");
-                            }else
-                            {
-                                file.WriteLine($"{count + 1}\t{molecule.Atoms[count].Symbol}\t{charge}");
-                            }                            
+                            molecule.Atoms[count].Charge = charge;                            
+                            file.Write("{0,-4}", count + 1);
+                            file.Write("{0,-3}", molecule.Atoms[count].Symbol);
+                            file.WriteLine("{0,9:F6}", charge);
                             count++;
                         }
                     }
@@ -398,15 +512,14 @@ namespace bc_thesis
         {
             double[,] arr = new double[m.NumOfAtoms, m.NumOfAtoms];
 
-            for (int i = 0; i < m.Atoms.Count; i++)
+            foreach(var a in m.Atoms)
             {
-                int rank = 0;
-                foreach (var b in m.Atoms[i].Bonds)
+                foreach(var b in a.Bonds)
                 {
-                    rank += b.Value;
+                    arr[b.Key - 1, b.Key - 1] += b.Value;
+                    arr[a.ID - 1, a.ID - 1] += b.Value;
                 }
-                arr[i, i] = rank;
-            }            
+            }    
 
             return arr;
         }
@@ -419,7 +532,8 @@ namespace bc_thesis
             {
                 foreach (var b in m.Atoms[i].Bonds)
                 {
-                    arr[i, b.Key] = b.Value;
+                    arr[i, b.Key - 1] = b.Value;
+                    arr[b.Key - 1, i] = b.Value;                    
                 }
             }
 
@@ -436,6 +550,65 @@ namespace bc_thesis
             }
 
             return arr;
+        }
+
+        private static double[] BuildMGVector(Molecule m)
+        {
+            double[] arr = new double[m.NumOfAtoms];
+
+            for(int i = 0; i < m.NumOfAtoms; i++)
+            {
+                arr[i] = GetElectronegativity(m.Atoms[i]);
+            }
+
+            return arr;
+        }
+
+        private static double CountGeometricAverageEN(Vector<double> vector)
+        {
+            double avgEN = 1;
+
+            for(int i = 0; i < vector.Count; i++)
+            {
+                avgEN *= vector[i];
+            }
+            avgEN = Math.Pow(avgEN, 1.0 / vector.Count);
+
+            return avgEN;
+        }
+
+        private static void SolveMG(string outputFilePath)
+        {
+            using (StreamWriter file = new StreamWriter(outputFilePath))
+            {
+                foreach (Molecule molecule in molecules)
+                {
+                    var a = Matrix<double>.Build.DenseOfArray(BuildConnectivityMatrix(molecule));
+                    var d = Matrix<double>.Build.DenseOfArray(BuildDegreeMatrix(molecule));
+                    var i = Matrix<double>.Build.DenseOfArray(BuildIdentityMatrix(molecule));
+                    var vector = Vector<double>.Build.Dense(BuildMGVector(molecule));
+
+                    Matrix<double> s = d - a + i;
+                    var x = s.Solve(vector);                    
+                    var charges = (x - vector) * (1.0 / CountGeometricAverageEN(vector));
+
+                    file.WriteLine($"NSC_{molecule.NSC}");
+                    file.WriteLine(molecule.NumOfAtoms);
+                    int count = 0;
+                    foreach (double charge in charges)
+                    {
+                        if (count != molecule.NumOfAtoms)
+                        {
+                            molecule.Atoms[count].Charge = charge;
+                            file.Write("{0,-4}", count + 1);
+                            file.Write("{0,-3}", molecule.Atoms[count].Symbol);
+                            file.WriteLine("{0,9:F6}", charge);
+                            count++;
+                        }
+                    }
+                    file.WriteLine("$$$$");
+                }
+            }
         }
     }
 }

@@ -58,6 +58,9 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="TestFiles\acetonitrile.sdf">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
     <Content Include="TestFiles\ElemBond.txt" />
     <Content Include="TestFiles\Element.txt" />
     <Content Include="TestFiles\set01.sdf">

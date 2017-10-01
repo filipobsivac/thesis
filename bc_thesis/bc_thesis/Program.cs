@@ -1,6 +1,7 @@
 ﻿using MathNet.Numerics.LinearAlgebra;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -14,10 +15,10 @@ namespace bc_thesis
     class Program
     {
         private static List<ElementParameters> elemParams;
-        private static bool paramBonds;
-        private static double kappa;
         private static List<Molecule> molecules;
-
+        private static bool paramBonds;
+        private static double kappa;        
+        
         static void Main(string[] args)
         {
             // ..\..\TestFiles\set01.sdf ..\..\TestFiles\ElemBond.txt eem ..\..\outEEM.txt
@@ -25,30 +26,31 @@ namespace bc_thesis
             // ..\..\TestFiles\set01.sdf ..\..\TestFiles\ElemBond.txt mg ..\..\outMG.txt
             // ..\..\TestFiles\set01.sdf ..\..\TestFiles\Element.txt mg ..\..\outMG.txt
             // ..\..\TestFiles\acetonitrile.sdf ..\..\TestFiles\ElemBond.txt mg ..\..\outMG.txt
-            // ..\..\TestFiles\acetonitrile.sdf ..\..\TestFiles\Element.txt mg ..\..\outMG.txt
-            Console.WriteLine("sdfFileName paramsFileName methodName outputFileName");
-            string arguments = Console.ReadLine();
-            string[] items = arguments.Split(' ');
-            string sdfFilePath = Path.GetFullPath(Path.Combine(Environment.CurrentDirectory, items[0]));
-            LoadMolecules(sdfFilePath);            
-            string paramsFilePath = Path.GetFullPath(Path.Combine(Environment.CurrentDirectory, items[1]));
+            // ..\..\TestFiles\acetonitrile.sdf ..\..\TestFiles\Element.txt mg ..\..\outMG.txt 
+            if (!CanParseArguments(args))
+                return;
+            if (!(CanAccessFile(args[0]) && CanAccessFile(args[1])))
+                return;
+            string sdfFilePath = Path.GetFullPath(Path.Combine(Environment.CurrentDirectory, args[0]));
+            LoadMolecules(sdfFilePath);
+            string paramsFilePath = Path.GetFullPath(Path.Combine(Environment.CurrentDirectory, args[1]));
             LoadParameters(paramsFilePath);
-
-            string outputFilePath = Path.GetFullPath(Path.Combine(Environment.CurrentDirectory, items[3]));
-            switch (items[2]){
+            string outputFilePath = Path.GetFullPath(Path.Combine(Environment.CurrentDirectory, args[3]));
+            switch (args[2])
+            {
                 case "eem": SolveEEM(outputFilePath); break;
                 case "mg": SolveMG(outputFilePath); break;
                 case "og": break;
                 default: break;
             }
 
-
-            var m = molecules.ElementAt(0);
-            
-            #region EEM Matrix solution test
+            #region Tests
             /*
+            var m = molecules.ElementAt(0);
+
+            #region EEM Matrix solution test
             Console.WriteLine("EEM Matrix:\n");
-            double[,] matrix = BuildEEMMatrix(m);            
+            double[,] matrix = BuildEEMMatrix(m);
             for (int i = 0; i <= m.NumOfAtoms; i++)
             {
                 for (int j = 0; j <= m.NumOfAtoms; j++)
@@ -69,22 +71,22 @@ namespace bc_thesis
                 count++;
             }
             Console.WriteLine();
-            var X = m1.Solve(v1);
+            var res = m1.Solve(v1);
             count = 0;
             Console.WriteLine("Results:\n");
-            foreach(double a in X)
+            foreach (double a in res)
             {
-                if(count != m.NumOfAtoms)
-                {                    
+                if (count != m.NumOfAtoms)
+                {
                     Console.Write("{0,-4}", count + 1);
-                    Console.WriteLine("{0,9:F6}", a);
-                }                
+                    Console.WriteLine("{0,13:F10}", a);
+                }
                 count++;
             }
-            */
             #endregion
 
             #region MG Matrix solution test   
+            
             var D = Matrix<double>.Build.DenseOfArray(BuildDegreeMatrix(m));
             var A = Matrix<double>.Build.DenseOfArray(BuildConnectivityMatrix(m));
             var I = Matrix<double>.Build.DenseOfArray(BuildIdentityMatrix(m));
@@ -172,10 +174,42 @@ namespace bc_thesis
                     Console.WriteLine("{0,9:F6}", charge);
                 }
                 count++;
-            }
+            }            
             #endregion
+            */
+            #endregion
+        }
 
-            Console.ReadKey();
+        private static bool CanAccessFile(string fileName)
+        {
+            try
+            {
+                var fileToRead = new FileInfo(fileName);
+                FileStream f = fileToRead.Open(FileMode.Open, FileAccess.Read, FileShare.None);
+                f.Close();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Cannot open " + fileName + " for reading. Exception raised - " + ex.Message);
+            }
+
+            return false;
+        }
+
+        private static bool CanParseArguments(string[] items)
+        {
+            if(items.Length != 4)
+            {
+                Console.WriteLine("All four arguments must be entered.");
+                return false;
+            }
+            else if (!(items[2].Equals("eem") || items[2].Equals("mg") || items[2].Equals("og")))
+            {
+                Console.WriteLine("Incorrect method name, only \"eem\", \"mg\" or \"og\" supported.");
+                return false;
+            }
+            return true;
         }
 
         private static void LoadParameters(string fileName)
@@ -223,12 +257,12 @@ namespace bc_thesis
 
                 elemParams.Add(parameters);
             }
-        }
+        }        
 
         private static void LoadMolecules(string fileName)
         {
-            molecules = new List<Molecule>();
-            StreamReader reader = File.OpenText(fileName);
+            molecules = new List<Molecule>();            
+            StreamReader reader = File.OpenText(fileName);            
             string line;
             int lineNum = 1;
             Molecule molecule = new Molecule();
@@ -242,9 +276,7 @@ namespace bc_thesis
                     molecule.NSC = int.Parse(items[1]);
                 }
                 else if (lineNum <= 3)
-                {
                     lineNum++;
-                }
                 else if (lineNum == 4)
                 {
                     molecule.NumOfAtoms = int.Parse(line.Substring(0, 3));
@@ -275,16 +307,14 @@ namespace bc_thesis
                     molecules.Add(molecule);
                     molecule = new Molecule();
                 }else
-                {
                     lineNum++;
-                }
             }
         }
 
         private static double CalculateDistance(Atom atom1, Atom atom2)
         {
             return Math.Sqrt(
-                  (atom2.X - atom1.X) * (atom2.X - atom1.X) 
+                  (atom2.X - atom1.X) * (atom2.X - atom1.X)
                 + (atom2.Y - atom1.Y) * (atom2.Y - atom1.Y) 
                 + (atom2.Z - atom2.Z) * (atom2.Z - atom1.Z)
                 );
@@ -398,6 +428,7 @@ namespace bc_thesis
             }
         }
         
+        //if loaded parameters file does not have specified bond types for parameters, returns 0
         private static int GetHighestBondType(Molecule m, Atom a)
         {
             int bond = 0;
@@ -405,24 +436,13 @@ namespace bc_thesis
             if (!paramBonds) return bond;
 
             foreach(var b in a.Bonds)
-            {
                 if (b.Value > bond)
-                {
                     bond = b.Value;
-                }
-            }
 
             foreach(var atom in m.Atoms)
-            {
                 foreach(KeyValuePair<int, int> b in atom.Bonds)
-                {
                     if (b.Key == a.ID && b.Value > bond)
-                    {
-                        
                         bond = b.Value;
-                    }
-                }
-            }
 
             return bond;
         }
@@ -439,17 +459,16 @@ namespace bc_thesis
                 {
                     if (j == columns - 1)
                         arr[i, j] = -1;
+                    else if (i == rows - 1)
+                        arr[i, j] = 1;
                     else if (i == j)
                     {
                         var a = m.Atoms.First(x => x.ID == i + 1);
-                        ElementParameters pars;
-                        pars = elemParams.First(x =>
-                        x.ElementName.Equals(a.Symbol) &&
-                        x.BondType == GetHighestBondType(m, a));
+                        var pars = elemParams.First(x =>
+                            x.ElementName.Equals(a.Symbol) &&
+                            x.BondType == GetHighestBondType(m, a));
                         arr[i, j] = pars.B;
-                    }
-                    else if (i == rows - 1)
-                        arr[i, j] = 1;
+                    }                    
                     else
                     {
                         var a1 = m.Atoms.First(x => x.ID == i + 1);
@@ -467,11 +486,10 @@ namespace bc_thesis
             double[] vector = new double[m.NumOfAtoms + 1];
             int count = 0;
             foreach (Atom a in m.Atoms)
-            {
-                ElementParameters pars;
-                pars = elemParams.First(x =>
-                x.ElementName.Equals(a.Symbol) &&
-                x.BondType == GetHighestBondType(m, a));
+            {                
+                var pars = elemParams.First(x =>
+                    x.ElementName.Equals(a.Symbol) &&
+                    x.BondType == GetHighestBondType(m, a));
                 vector[count] = -pars.A;
                 count++;
             }
@@ -545,9 +563,7 @@ namespace bc_thesis
             double[,] arr = new double[m.NumOfAtoms, m.NumOfAtoms];
 
             for(int i = 0; i < m.NumOfAtoms; i++)
-            {
                 arr[i, i] = 1;
-            }
 
             return arr;
         }
@@ -557,9 +573,7 @@ namespace bc_thesis
             double[] arr = new double[m.NumOfAtoms];
 
             for(int i = 0; i < m.NumOfAtoms; i++)
-            {
                 arr[i] = GetElectronegativity(m.Atoms[i]);
-            }
 
             return arr;
         }
@@ -569,9 +583,7 @@ namespace bc_thesis
             double avgEN = 1;
 
             for(int i = 0; i < vector.Count; i++)
-            {
                 avgEN *= vector[i];
-            }
             avgEN = Math.Pow(avgEN, 1.0 / vector.Count);
 
             return avgEN;

@@ -48,6 +48,11 @@ namespace bc_thesis
             /*
             var m = molecules.ElementAt(0);
 
+            Console.WriteLine($"Atom 6: {m.Atoms[5].X}, {m.Atoms[5].Y}, {m.Atoms[5].Z}");
+            Console.WriteLine($"Atom 7: {m.Atoms[6].X}, {m.Atoms[6].Y}, {m.Atoms[6].Z}");
+            Console.WriteLine($"Distance: {CalculateDistance(m.Atoms[5], m.Atoms[6])}");
+            Console.WriteLine();
+
             #region EEM Matrix solution test
             Console.WriteLine("EEM Matrix:\n");
             double[,] matrix = BuildEEMMatrix(m);
@@ -84,7 +89,7 @@ namespace bc_thesis
                 count++;
             }
             #endregion
-
+            
             #region MG Matrix solution test   
             
             var D = Matrix<double>.Build.DenseOfArray(BuildDegreeMatrix(m));
@@ -316,7 +321,7 @@ namespace bc_thesis
             return Math.Sqrt(
                   (atom2.X - atom1.X) * (atom2.X - atom1.X)
                 + (atom2.Y - atom1.Y) * (atom2.Y - atom1.Y) 
-                + (atom2.Z - atom2.Z) * (atom2.Z - atom1.Z)
+                + (atom2.Z - atom1.Z) * (atom2.Z - atom1.Z)
                 );
         }
 

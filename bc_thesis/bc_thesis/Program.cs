@@ -37,8 +37,8 @@ namespace bc_thesis
             switch (args[2])
             {
                 case "eem": SolveEEM(outputFilePath); break;
-                case "mg": SolveMG(outputFilePath); break;
-                case "og": break;
+                case "mgc": SolveMG(outputFilePath); break;
+                case "ogc": break;
                 default: break;
             }
 
@@ -187,12 +187,12 @@ namespace bc_thesis
         {
             if(items.Length != 4)
             {
-                Console.WriteLine("All four arguments must be entered.");
+                Console.WriteLine("Arguments must be entered in the following format: <sdf file> <parameters file> <method> <output file>");
                 return false;
             }
-            else if (!(items[2].Equals("eem") || items[2].Equals("mg") || items[2].Equals("og")))
+            else if (!(items[2].Equals("eem") || items[2].Equals("mgc") || items[2].Equals("ogc")))
             {
-                Console.WriteLine("Incorrect method name, only \"eem\", \"mg\" or \"og\" supported.");
+                Console.WriteLine("Incorrect method name, only \"eem\", \"mgc\" or \"ogc\" supported.");
                 return false;
             }
             return true;
@@ -453,7 +453,7 @@ namespace bc_thesis
             return bond;
         }
 
-        private static double[,] BuildEEMMatrix(Molecule m)
+        private static Matrix<double> BuildEEMMatrix(Molecule m)
         {
             int columns = m.NumOfAtoms + 1;
             int rows = m.NumOfAtoms + 1;
@@ -484,10 +484,10 @@ namespace bc_thesis
                 }
             }
             arr[rows - 1, columns - 1] = 0;
-            return arr;
+            return Matrix<double>.Build.DenseOfArray(arr);
         }
 
-        private static double[] BuildEEMVector(Molecule m)
+        private static Vector<double> BuildEEMVector(Molecule m)
         {
             double[] vector = new double[m.NumOfAtoms + 1];
             int count = 0;
@@ -500,7 +500,7 @@ namespace bc_thesis
                 count++;
             }
             vector[count] = 0;//Q
-            return vector;
+            return Vector<double>.Build.Dense(vector);
         }
 
         private static void SolveEEM(string outputFilePath)
@@ -509,30 +509,15 @@ namespace bc_thesis
             {
                 foreach(Molecule molecule in molecules)
                 {
-                    var matrix = Matrix<double>.Build.DenseOfArray(BuildEEMMatrix(molecule));
-                    var vector = Vector<double>.Build.Dense(BuildEEMVector(molecule));
+                    var matrix = BuildEEMMatrix(molecule);
+                    var vector = BuildEEMVector(molecule);
                     var results = matrix.Solve(vector);
-
-                    file.WriteLine($"NSC_{molecule.NSC}");
-                    file.WriteLine(molecule.NumOfAtoms);
-                    int count = 0;
-                    foreach(double charge in results)
-                    {
-                        if(count != molecule.NumOfAtoms)
-                        {
-                            molecule.Atoms[count].Charge = charge;                            
-                            file.Write("{0,-4}", count + 1);
-                            file.Write("{0,-3}", molecule.Atoms[count].Symbol);
-                            file.WriteLine("{0,9:F6}", charge);
-                            count++;
-                        }
-                    }
-                    file.WriteLine("$$$$");
+                    SaveResults(file, molecule, results);
                 }                
             }
-        }
+        }        
 
-        private static double[,] BuildDegreeMatrix(Molecule m)
+        private static Matrix<double> BuildDegreeMatrix(Molecule m)
         {
             double[,] arr = new double[m.NumOfAtoms, m.NumOfAtoms];
 
@@ -545,10 +530,10 @@ namespace bc_thesis
                 }
             }    
 
-            return arr;
+            return Matrix<double>.Build.DenseOfArray(arr);
         }
 
-        private static double[,] BuildConnectivityMatrix(Molecule m)
+        private static Matrix<double> BuildConnectivityMatrix(Molecule m)
         {
             double[,] arr = new double[m.NumOfAtoms, m.NumOfAtoms];
 
@@ -561,27 +546,27 @@ namespace bc_thesis
                 }
             }
 
-            return arr;
+            return Matrix<double>.Build.DenseOfArray(arr);
         }
 
-        private static double[,] BuildIdentityMatrix(Molecule m)
+        private static Matrix<double> BuildIdentityMatrix(Molecule m)
         {
             double[,] arr = new double[m.NumOfAtoms, m.NumOfAtoms];
 
             for(int i = 0; i < m.NumOfAtoms; i++)
                 arr[i, i] = 1;
 
-            return arr;
+            return Matrix<double>.Build.DenseOfArray(arr);
         }
 
-        private static double[] BuildMGVector(Molecule m)
+        private static Vector<double> BuildMGVector(Molecule m)
         {
             double[] arr = new double[m.NumOfAtoms];
 
             for(int i = 0; i < m.NumOfAtoms; i++)
                 arr[i] = GetElectronegativity(m.Atoms[i]);
 
-            return arr;
+            return Vector<double>.Build.Dense(arr);
         }
 
         private static double CountGeometricAverageEN(Vector<double> vector)
@@ -601,32 +586,37 @@ namespace bc_thesis
             {
                 foreach (Molecule molecule in molecules)
                 {
-                    var a = Matrix<double>.Build.DenseOfArray(BuildConnectivityMatrix(molecule));
-                    var d = Matrix<double>.Build.DenseOfArray(BuildDegreeMatrix(molecule));
-                    var i = Matrix<double>.Build.DenseOfArray(BuildIdentityMatrix(molecule));
-                    var vector = Vector<double>.Build.Dense(BuildMGVector(molecule));
+                    var a = BuildConnectivityMatrix(molecule);
+                    var d = BuildDegreeMatrix(molecule);
+                    var i = BuildIdentityMatrix(molecule);
+                    var vector = BuildMGVector(molecule);
 
                     Matrix<double> s = d - a + i;
                     var x = s.Solve(vector);                    
-                    var charges = (x - vector) * (1.0 / CountGeometricAverageEN(vector));
+                    var results = (x - vector) * (1.0 / CountGeometricAverageEN(vector));
 
-                    file.WriteLine($"NSC_{molecule.NSC}");
-                    file.WriteLine(molecule.NumOfAtoms);
-                    int count = 0;
-                    foreach (double charge in charges)
-                    {
-                        if (count != molecule.NumOfAtoms)
-                        {
-                            molecule.Atoms[count].Charge = charge;
-                            file.Write("{0,-4}", count + 1);
-                            file.Write("{0,-3}", molecule.Atoms[count].Symbol);
-                            file.WriteLine("{0,9:F6}", charge);
-                            count++;
-                        }
-                    }
-                    file.WriteLine("$$$$");
+                    SaveResults(file, molecule, results);
                 }
             }
+        }
+
+        private static void SaveResults(StreamWriter file, Molecule molecule, Vector<double> results)
+        {
+            file.WriteLine($"NSC_{molecule.NSC}");
+            file.WriteLine(molecule.NumOfAtoms);
+            int count = 0;
+            foreach (double charge in results)
+            {
+                if (count != molecule.NumOfAtoms)
+                {
+                    molecule.Atoms[count].Charge = charge;
+                    file.Write("{0,-4}", count + 1);
+                    file.Write("{0,-3}", molecule.Atoms[count].Symbol);
+                    file.WriteLine("{0,9:F6}", charge);
+                    count++;
+                }
+            }
+            file.WriteLine("$$$$");
         }
     }
 }

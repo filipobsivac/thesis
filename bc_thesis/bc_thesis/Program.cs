@@ -28,9 +28,7 @@ namespace bc_thesis
             // ..\..\TestFiles\acetonitrile.sdf ..\..\TestFiles\ElemBond.txt mg ..\..\outMG.txt
             // ..\..\TestFiles\acetonitrile.sdf ..\..\TestFiles\Element.txt mg ..\..\outMG.txt 
             if (!CanParseArguments(args))
-                return;
-            if (!(CanAccessFile(args[0]) && CanAccessFile(args[1])))
-                return;
+                return;            
             string sdfFilePath = Path.GetFullPath(Path.Combine(Environment.CurrentDirectory, args[0]));
             LoadMolecules(sdfFilePath);
             string paramsFilePath = Path.GetFullPath(Path.Combine(Environment.CurrentDirectory, args[1]));
@@ -185,23 +183,6 @@ namespace bc_thesis
             #endregion
         }
 
-        private static bool CanAccessFile(string fileName)
-        {
-            try
-            {
-                var fileToRead = new FileInfo(fileName);
-                FileStream f = fileToRead.Open(FileMode.Open, FileAccess.Read, FileShare.None);
-                f.Close();
-                return true;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine("Cannot open " + fileName + " for reading. Exception raised - " + ex.Message);
-            }
-
-            return false;
-        }
-
         private static bool CanParseArguments(string[] items)
         {
             if(items.Length != 4)
@@ -219,100 +200,120 @@ namespace bc_thesis
 
         private static void LoadParameters(string fileName)
         {
-            elemParams = new List<ElementParameters>();
-            StreamReader reader = File.OpenText(fileName);
-            string line;
-            bool firstLine = true;
-
-            while ((line = reader.ReadLine()) != null)
+            try
             {
-                if (firstLine)
-                {
-                    firstLine = false;
-                    string[] items = line.Split(' ');
-                    kappa = double.Parse(items[1], CultureInfo.InvariantCulture);
-                    if (items[0].Equals("Element"))
+                elemParams = new List<ElementParameters>();
+                using (StreamReader reader = File.OpenText(fileName))
+                {                    
+                    string line;
+                    bool firstLine = true;
+
+                    while ((line = reader.ReadLine()) != null)
                     {
-                        paramBonds = false;
-                    }else
-                    {
-                        paramBonds = true;
+                        if (firstLine)
+                        {
+                            firstLine = false;
+                            string[] items = line.Split(' ');
+                            kappa = double.Parse(items[1], CultureInfo.InvariantCulture);
+                            if (items[0].Equals("Element"))
+                            {
+                                paramBonds = false;
+                            }
+                            else
+                            {
+                                paramBonds = true;
+                            }
+                            continue;
+                        }
+
+                        string[] param = line.Split(' ');
+                        ElementParameters parameters;
+                        if (paramBonds)
+                        {
+                            parameters = new ElementParameters(
+                                param[0],
+                                double.Parse(param[2], CultureInfo.InvariantCulture),
+                                double.Parse(param[3], CultureInfo.InvariantCulture),
+                                int.Parse(param[1]));
+                        }
+                        else
+                        {
+                            parameters = new ElementParameters(
+                                param[0],
+                                double.Parse(param[1], CultureInfo.InvariantCulture),
+                                double.Parse(param[2], CultureInfo.InvariantCulture)
+                                );
+                        }
+
+                        elemParams.Add(parameters);
                     }
-                    continue;
                 }
-
-                string[] param = line.Split(' ');
-                ElementParameters parameters;
-                if (paramBonds)
-                {
-                    parameters = new ElementParameters(
-                        param[0], 
-                        double.Parse(param[2], CultureInfo.InvariantCulture), 
-                        double.Parse(param[3], CultureInfo.InvariantCulture), 
-                        int.Parse(param[1]));
-                }
-                else
-                {
-                    parameters = new ElementParameters(
-                        param[0], 
-                        double.Parse(param[1], CultureInfo.InvariantCulture), 
-                        double.Parse(param[2], CultureInfo.InvariantCulture)
-                        );
-                }
-
-                elemParams.Add(parameters);
+            } catch (Exception ex)
+            {
+                Console.WriteLine("Could not load parameters. Exception: " + ex.Message);
             }
         }        
 
         private static void LoadMolecules(string fileName)
         {
-            molecules = new List<Molecule>();            
-            StreamReader reader = File.OpenText(fileName);            
-            string line;
-            int lineNum = 1;
-            Molecule molecule = new Molecule();
-
-            while ((line = reader.ReadLine()) != null)
+            molecules = new List<Molecule>();
+            try
             {
-                if (lineNum == 1)
+                using (StreamReader reader = File.OpenText(fileName))
                 {
-                    lineNum++;
-                    string[] items = line.Split('_');
-                    molecule.NSC = int.Parse(items[1]);
+                    string line;
+                    int lineNum = 1;
+                    Molecule molecule = new Molecule();
+
+                    while ((line = reader.ReadLine()) != null)
+                    {
+                        if (lineNum == 1)
+                        {
+                            lineNum++;
+                            string[] items = line.Split('_');
+                            molecule.NSC = int.Parse(items[1]);
+                        }
+                        else if (lineNum <= 3)
+                            lineNum++;
+                        else if (lineNum == 4)
+                        {
+                            molecule.NumOfAtoms = int.Parse(line.Substring(0, 3));
+                            molecule.NumOfBonds = int.Parse(line.Substring(3, 3));
+                            lineNum++;
+                        }
+                        else if (lineNum <= molecule.NumOfAtoms + 4)
+                        {
+                            Atom atom = new Atom(
+                                lineNum - 4,
+                                line.Substring(31, 3).Trim(' '),
+                                double.Parse(line.Substring(0, 10), CultureInfo.InvariantCulture),
+                                double.Parse(line.Substring(10, 10), CultureInfo.InvariantCulture),
+                                double.Parse(line.Substring(20, 10), CultureInfo.InvariantCulture));
+                            molecule.Atoms.Add(atom);
+                            lineNum++;
+                        }
+                        else if (lineNum <= molecule.NumOfAtoms + molecule.NumOfBonds + 4)
+                        {
+                            var firstAtom = molecule.Atoms.Find(a => a.ID == int.Parse(line.Substring(0, 3)));
+                            firstAtom.Bonds.Add(
+                                int.Parse(line.Substring(3, 3)),
+                                int.Parse(line.Substring(6, 3)));
+                            lineNum++;
+                        }
+                        else if (line.Equals("$$$$"))
+                        {
+                            lineNum = 1;
+                            molecules.Add(molecule);
+                            molecule = new Molecule();
+                        }
+                        else
+                            lineNum++;
+                    }
                 }
-                else if (lineNum <= 3)
-                    lineNum++;
-                else if (lineNum == 4)
-                {
-                    molecule.NumOfAtoms = int.Parse(line.Substring(0, 3));
-                    molecule.NumOfBonds = int.Parse(line.Substring(3, 3));
-                    lineNum++;
-                }
-                else if (lineNum <= molecule.NumOfAtoms + 4)
-                {
-                    Atom atom = new Atom(
-                        lineNum - 4,
-                        line.Substring(31, 3).Trim(' '),
-                        double.Parse(line.Substring(0, 10), CultureInfo.InvariantCulture),
-                        double.Parse(line.Substring(10, 10), CultureInfo.InvariantCulture),
-                        double.Parse(line.Substring(20, 10), CultureInfo.InvariantCulture));
-                    molecule.Atoms.Add(atom);
-                    lineNum++;
-                }
-                else if (lineNum <= molecule.NumOfAtoms + molecule.NumOfBonds + 4) {
-                    var firstAtom = molecule.Atoms.Find(a => a.ID == int.Parse(line.Substring(0, 3)));
-                    firstAtom.Bonds.Add(
-                        int.Parse(line.Substring(3, 3)),
-                        int.Parse(line.Substring(6, 3)));
-                    lineNum++;
-                }
-                else if (line.Equals("$$$$"))
-                {
-                    lineNum = 1;
-                    molecules.Add(molecule);
-                    molecule = new Molecule();
-                }else
-                    lineNum++;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Could not load molecules. Exception: " + ex.Message);
             }
         }
 

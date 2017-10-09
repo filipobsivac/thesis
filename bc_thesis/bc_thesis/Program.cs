@@ -23,176 +23,42 @@ namespace bc_thesis
         {
             // ..\..\TestFiles\set01.sdf ..\..\TestFiles\ElemBond.txt eem ..\..\outEEM.txt
             // ..\..\TestFiles\set01.sdf ..\..\TestFiles\Element.txt eem ..\..\outEEM.txt
-            // ..\..\TestFiles\set01.sdf ..\..\TestFiles\ElemBond.txt mg ..\..\outMG.txt
-            // ..\..\TestFiles\set01.sdf ..\..\TestFiles\Element.txt mg ..\..\outMG.txt
-            // ..\..\TestFiles\acetonitrile.sdf ..\..\TestFiles\ElemBond.txt mg ..\..\outMG.txt
-            // ..\..\TestFiles\acetonitrile.sdf ..\..\TestFiles\Element.txt mg ..\..\outMG.txt 
+            // ..\..\TestFiles\set01.sdf ..\..\TestFiles\ElemBond.txt mgc ..\..\outMGC.txt
+            // ..\..\TestFiles\set01.sdf ..\..\TestFiles\Element.txt mgc ..\..\outMGC.txt
+            // ..\..\TestFiles\acetonitrile.sdf ..\..\TestFiles\ElemBond.txt mgc ..\..\outMGC.txt
+            // ..\..\TestFiles\acetonitrile.sdf ..\..\TestFiles\Element.txt mgc ..\..\outMGC.txt 
+            // ..\..\outEEM.txt ..\..\outMGC.txt stats ..\..\outSTATS.txt
             if (!CanParseArguments(args))
-                return;            
-            string sdfFilePath = Path.GetFullPath(Path.Combine(Environment.CurrentDirectory, args[0]));
-            LoadMolecules(sdfFilePath);
-            string paramsFilePath = Path.GetFullPath(Path.Combine(Environment.CurrentDirectory, args[1]));
-            LoadParameters(paramsFilePath);
+                return;                        
+            string firstFilePath = Path.GetFullPath(Path.Combine(Environment.CurrentDirectory, args[0]));
+            string secondFilePath = Path.GetFullPath(Path.Combine(Environment.CurrentDirectory, args[1]));
             string outputFilePath = Path.GetFullPath(Path.Combine(Environment.CurrentDirectory, args[3]));
+            if (!args[2].Equals("stats"))
+            {
+                LoadMolecules(firstFilePath);
+                LoadParameters(secondFilePath);
+            }
             switch (args[2])
             {
                 case "eem": SolveEEM(outputFilePath); break;
                 case "mgc": SolveMG(outputFilePath); break;
+                case "stats": GenerateStatistics(firstFilePath, secondFilePath, outputFilePath); break;
                 case "ogc": break;
                 default: break;
             }
-
-            #region Tests
-            /*
-            var m = molecules.ElementAt(0);
-
-            Console.WriteLine($"Atom 6: {m.Atoms[5].X}, {m.Atoms[5].Y}, {m.Atoms[5].Z}");
-            Console.WriteLine($"Atom 7: {m.Atoms[6].X}, {m.Atoms[6].Y}, {m.Atoms[6].Z}");
-            Console.WriteLine($"Distance: {CalculateDistance(m.Atoms[5], m.Atoms[6])}");
-            Console.WriteLine();
-
-            #region EEM Matrix solution test
-            Console.WriteLine("EEM Matrix:\n");
-            double[,] matrix = BuildEEMMatrix(m);
-            for (int i = 0; i <= m.NumOfAtoms; i++)
-            {
-                for (int j = 0; j <= m.NumOfAtoms; j++)
-                {
-                    Console.Write("{0,6:F2}", matrix[i, j]);
-                }
-                Console.WriteLine();
-            }
-            Console.WriteLine();
-            var m1 = Matrix<double>.Build.DenseOfArray(matrix);
-            var v1 = Vector<double>.Build.Dense(BuildEEMVector(m));
-            Console.WriteLine("EEM Vector:\n");
-            int count = 0;
-            foreach (double a in v1)
-            {
-                Console.Write("{0,-4}", count + 1);
-                Console.WriteLine("{0,7:F4}", a);
-                count++;
-            }
-            Console.WriteLine();
-            var res = m1.Solve(v1);
-            count = 0;
-            Console.WriteLine("Results:\n");
-            foreach (double a in res)
-            {
-                if (count != m.NumOfAtoms)
-                {
-                    Console.Write("{0,-4}", count + 1);
-                    Console.WriteLine("{0,13:F10}", a);
-                }
-                count++;
-            }
-            #endregion
-            
-            #region MG Matrix solution test   
-            
-            var D = Matrix<double>.Build.DenseOfArray(BuildDegreeMatrix(m));
-            var A = Matrix<double>.Build.DenseOfArray(BuildConnectivityMatrix(m));
-            var I = Matrix<double>.Build.DenseOfArray(BuildIdentityMatrix(m));
-            var V = Vector<double>.Build.Dense(BuildMGVector(m));
-            double avgEN = CountGeometricAverageEN(V);
-            Matrix<double> S = D - A + I;
-            var X = S.Solve(V);
-            var deltaX = X - V;
-            var results = deltaX * (1.0 / CountGeometricAverageEN(V));
-
-            Console.WriteLine("D matrix:\n");
-            for (int i = 0; i < m.NumOfAtoms; i++)
-            {
-                for (int j = 0; j < m.NumOfAtoms; j++)
-                {
-                    Console.Write("{0,3}", D[i, j]);
-                }
-                Console.WriteLine();
-            }
-
-            Console.WriteLine();
-            Console.WriteLine("A matrix:\n");
-            for (int i = 0; i < m.NumOfAtoms; i++)
-            {
-                for (int j = 0; j < m.NumOfAtoms; j++)
-                {
-                    Console.Write("{0,3}", A[i, j]);
-                }
-                Console.WriteLine();
-            }
-
-            Console.WriteLine();
-            Console.WriteLine("I matrix:\n");
-            for (int i = 0; i < m.NumOfAtoms; i++)
-            {
-                for (int j = 0; j < m.NumOfAtoms; j++)
-                {
-                    Console.Write("{0,3}", I[i, j]);
-                }
-                Console.WriteLine();
-            }
-
-            Console.WriteLine();
-            Console.WriteLine("S matrix:\n");
-            for (int i = 0; i < m.NumOfAtoms; i++)
-            {
-                for (int j = 0; j < m.NumOfAtoms; j++)
-                {
-                    Console.Write("{0,3}", S[i, j]);
-                }
-                Console.WriteLine();
-            }
-
-            Console.WriteLine("Vector:\n");
-            foreach(double val in V)
-            {
-                Console.Write("{0,6}", val);
-            }
-            Console.WriteLine();
-
-            Console.WriteLine("X vector:\n");
-            foreach (double val in X)
-            {
-                Console.Write("{0,6:F2}", val);
-            }
-
-            Console.WriteLine();
-            Console.WriteLine("deltaX matrix:\n");
-            foreach (double val in deltaX)
-            {
-                Console.Write("{0,6:F2}", val);
-            }
-            Console.WriteLine();            
-
-            Console.WriteLine();
-            Console.WriteLine($"Geometric average of electronegativities: {avgEN}\n");
-       
-            Console.WriteLine("Results:\n");
-            int count = 0;
-            foreach (double charge in results)
-            {
-                if (count != m.NumOfAtoms)
-                {
-                    Console.Write("{0,-4}", count + 1);
-                    Console.WriteLine("{0,9:F6}", charge);
-                }
-                count++;
-            }            
-            #endregion
-            */
-            #endregion
         }
 
         private static bool CanParseArguments(string[] items)
         {
             if(items.Length != 4)
             {
-                Console.WriteLine("Arguments must be entered in the following format: <sdf file> <parameters file> <method> <output file>");
+                Console.WriteLine("Arguments must be entered in the following format:");
+                Console.WriteLine("\"<sdf file> <parameters file> <method> <output file>\" or \"<first molecules file> <second molecules file> \"stats\" <output file>\"");
                 return false;
             }
-            else if (!(items[2].Equals("eem") || items[2].Equals("mgc") || items[2].Equals("ogc")))
+            else if (!(items[2].Equals("eem") || items[2].Equals("mgc") || items[2].Equals("ogc") || items[2].Equals("stats")))
             {
-                Console.WriteLine("Incorrect method name, only \"eem\", \"mgc\" or \"ogc\" supported.");
+                Console.WriteLine("Incorrect method name. Only \"eem\", \"mgc\", \"ogc\" or \"stats\" supported.");
                 return false;
             }
             return true;
@@ -283,12 +149,12 @@ namespace bc_thesis
                         }
                         else if (lineNum <= molecule.NumOfAtoms + 4)
                         {
-                            Atom atom = new Atom(
-                                lineNum - 4,
-                                line.Substring(31, 3).Trim(' '),
-                                double.Parse(line.Substring(0, 10), CultureInfo.InvariantCulture),
-                                double.Parse(line.Substring(10, 10), CultureInfo.InvariantCulture),
-                                double.Parse(line.Substring(20, 10), CultureInfo.InvariantCulture));
+                            Atom atom = new Atom();                            
+                            atom.ID = lineNum - 4;
+                            atom.Symbol = line.Substring(31, 3).Trim(' ');
+                            atom.X = double.Parse(line.Substring(0, 10), CultureInfo.InvariantCulture);
+                            atom.Y = double.Parse(line.Substring(10, 10), CultureInfo.InvariantCulture);
+                            atom.Z = double.Parse(line.Substring(20, 10), CultureInfo.InvariantCulture);
                             molecule.Atoms.Add(atom);
                             lineNum++;
                         }
@@ -505,15 +371,21 @@ namespace bc_thesis
 
         private static void SolveEEM(string outputFilePath)
         {
-            using (StreamWriter file = new StreamWriter(outputFilePath))
+            try
             {
-                foreach(Molecule molecule in molecules)
+                using (StreamWriter file = new StreamWriter(outputFilePath))
                 {
-                    var matrix = BuildEEMMatrix(molecule);
-                    var vector = BuildEEMVector(molecule);
-                    var results = matrix.Solve(vector);
-                    SaveResults(file, molecule, results);
-                }                
+                    foreach (Molecule molecule in molecules)
+                    {
+                        var matrix = BuildEEMMatrix(molecule);
+                        var vector = BuildEEMVector(molecule);
+                        var results = matrix.Solve(vector);
+                        SaveResults(file, molecule, results);
+                    }
+                }
+            }catch(Exception ex)
+            {
+                Console.WriteLine("Could not save results. Exception: " + ex.Message);
             }
         }        
 
@@ -582,21 +454,27 @@ namespace bc_thesis
 
         private static void SolveMG(string outputFilePath)
         {
-            using (StreamWriter file = new StreamWriter(outputFilePath))
+            try
             {
-                foreach (Molecule molecule in molecules)
+                using (StreamWriter file = new StreamWriter(outputFilePath))
                 {
-                    var a = BuildConnectivityMatrix(molecule);
-                    var d = BuildDegreeMatrix(molecule);
-                    var i = BuildIdentityMatrix(molecule);
-                    var vector = BuildMGVector(molecule);
+                    foreach (Molecule molecule in molecules)
+                    {
+                        var a = BuildConnectivityMatrix(molecule);
+                        var d = BuildDegreeMatrix(molecule);
+                        var i = BuildIdentityMatrix(molecule);
+                        var vector = BuildMGVector(molecule);
 
-                    Matrix<double> s = d - a + i;
-                    var x = s.Solve(vector);                    
-                    var results = (x - vector) * (1.0 / CountGeometricAverageEN(vector));
+                        Matrix<double> s = d - a + i;
+                        var x = s.Solve(vector);
+                        var results = (x - vector) * (1.0 / CountGeometricAverageEN(vector));
 
-                    SaveResults(file, molecule, results);
+                        SaveResults(file, molecule, results);
+                    }
                 }
+            }catch(Exception ex)
+            {
+                Console.WriteLine("Could not save results. Exception: " + ex.Message);
             }
         }
 
@@ -617,6 +495,113 @@ namespace bc_thesis
                 }
             }
             file.WriteLine("$$$$");
+        }
+
+        private static List<Molecule> LoadMoleculesFromOutputFile(string filePath)
+        {
+            List<Molecule> set = new List<Molecule>();
+            try
+            {
+                using (StreamReader reader = File.OpenText(filePath))
+                {
+                    string line;
+                    int lineNum = 1;
+                    Molecule molecule = new Molecule();
+                    while ((line = reader.ReadLine()) != null)
+                    {
+                        if (lineNum == 1)
+                        {
+                            molecule = new Molecule();
+                            int nsc = int.Parse(line.Substring(4));
+                            molecule.NSC = nsc;
+                            lineNum++;
+                        }
+                        else if (lineNum == 2)
+                        {
+                            molecule.NumOfAtoms = int.Parse(line);
+                            lineNum++;
+                        }
+                        else if (lineNum <= molecule.NumOfAtoms + 2)
+                        {
+                            Atom atom = new Atom();
+                            atom.ID = int.Parse(line.Substring(0, 4));
+                            atom.Symbol = line.Substring(4, 3);
+                            atom.Charge = double.Parse(line.Substring(7));
+                            molecule.Atoms.Add(atom);
+                            lineNum++;
+                        }
+                        else
+                        {
+                            set.Add(molecule);
+                            lineNum = 1;
+                        }
+                    }
+                }
+            }catch(Exception ex)
+            {
+                Console.WriteLine("Could not load molecules. Exception: " + ex.Message);
+            }
+            return set;
+        }
+
+        private static void GenerateStatistics(string firstFilePath, string secondFilePath, string outputFilePath)
+        {
+            double d_max = 0;
+
+            double d_avg = 0;
+            double sum_avg = 0;
+
+            double rmsd = 0;
+            double sum_rmsd = 0;
+            
+            double pearson = 0;
+            double sum_xy = 0;
+            double sum_xsq = 0;
+            double sum_ysq = 0;
+            double sum_x = 0;
+            double sum_y = 0;
+            try
+            {
+                List<Molecule> firstSet = LoadMoleculesFromOutputFile(firstFilePath);
+                List<Molecule> secondSet = LoadMoleculesFromOutputFile(secondFilePath);
+                using (StreamWriter file = new StreamWriter(outputFilePath))
+                {
+                    for(int i = 0; i < firstSet.Count; i++)
+                    {
+                        for(int j = 0; j < firstSet.ElementAt(i).NumOfAtoms; j++)
+                        {
+                            double x = firstSet.ElementAt(i).Atoms.ElementAt(j).Charge;
+                            double y = secondSet.ElementAt(i).Atoms.ElementAt(j).Charge;
+
+                            if(Math.Abs(x - y) > d_max)
+                                d_max = Math.Abs(x - y);
+
+                            sum_avg += Math.Abs(x - y);
+                            sum_rmsd += (x - y) * (x - y);
+                            sum_x += x;
+                            sum_y += y;
+                            sum_xy += x * y;
+                            sum_xsq += x * x;
+                            sum_ysq += y * y;
+                        }
+                        d_avg = sum_avg / (double)firstSet.ElementAt(i).NumOfAtoms;
+                        rmsd = Math.Sqrt(sum_rmsd / (double)firstSet.ElementAt(i).NumOfAtoms);
+                        int n = firstSet.ElementAt(i).NumOfAtoms;
+                        pearson = (n * sum_xy - sum_x * sum_y) / ( Math.Sqrt(n * sum_xsq - sum_x * sum_x) * Math.Sqrt(n * sum_ysq - sum_y * sum_y) );
+
+                        file.WriteLine($"NSC_{firstSet.ElementAt(i).NSC}");
+                        file.WriteLine($"Largest absolute difference: {d_max}");
+                        file.WriteLine($"Average absolute difference: {d_avg}");
+                        file.WriteLine($"Root-mean-square deviation: {rmsd}");
+                        file.WriteLine($"Pearson correlation coefficient: {pearson}");
+                        file.WriteLine("$$$$");
+                    }
+                }
+            }
+            catch(Exception ex)
+            {
+                Console.WriteLine("Could not save results. Exception: " + ex.Message);
+            }
         }
     }
 }

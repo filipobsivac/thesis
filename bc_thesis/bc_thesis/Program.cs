@@ -564,6 +564,7 @@ namespace bc_thesis
             {
                 List<Molecule> firstSet = LoadMoleculesFromOutputFile(firstFilePath);
                 List<Molecule> secondSet = LoadMoleculesFromOutputFile(secondFilePath);
+
                 using (StreamWriter file = new StreamWriter(outputFilePath))
                 {
                     for(int i = 0; i < firstSet.Count; i++)
@@ -596,11 +597,40 @@ namespace bc_thesis
                         file.WriteLine($"Pearson correlation coefficient: {pearson}");
                         file.WriteLine("$$$$");
                     }
+
+                    GNUPlot(firstSet, secondSet);
                 }
             }
             catch(Exception ex)
             {
                 Console.WriteLine("Could not save results. Exception: " + ex.Message);
+            }
+        }
+
+        private static void GNUPlot(List<Molecule> firstSet, List<Molecule> secondSet)
+        {
+            Process plotProcess = new Process();
+            plotProcess.StartInfo.FileName = Path.GetFullPath(Path.Combine(Environment.CurrentDirectory, @"..\..\gnuplot\bin\gnuplot.exe"));
+            plotProcess.StartInfo.RedirectStandardInput = true;
+            plotProcess.StartInfo.UseShellExecute = false;
+            plotProcess.Start();
+
+
+
+            string inputFilePath = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), @"..\..\inputFile.txt"));
+            using (StreamWriter inputFile = new StreamWriter(inputFilePath))
+                for (int i = 0; i < firstSet.Count; i++)
+                    for (int j = 0; j < firstSet.ElementAt(i).NumOfAtoms; j++)
+                        inputFile.WriteLine($"{firstSet.ElementAt(i).Atoms.ElementAt(j).Charge} {secondSet.ElementAt(i).Atoms.ElementAt(j).Charge}");
+
+            using (StreamWriter gnuplotFile = plotProcess.StandardInput)
+            {
+                gnuplotFile.WriteLine("set terminal png");
+                gnuplotFile.WriteLine("set title \"Partial atomic charge correlation graph\"");
+                gnuplotFile.WriteLine("set xlabel \"First set of atom charges\"");
+                gnuplotFile.WriteLine("set ylabel \"Second set of atom charges\"");
+                gnuplotFile.WriteLine("set output \'..\\..\\correlationGraph.png\'");
+                gnuplotFile.WriteLine($"plot '{inputFilePath}' notitle");//TODO graph always round values for some reason
             }
         }
     }

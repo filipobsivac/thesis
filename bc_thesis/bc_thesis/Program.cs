@@ -6,8 +6,6 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Text;
-using System.Threading.Tasks;
 using thesis.Classes;
 
 namespace bc_thesis
@@ -194,110 +192,24 @@ namespace bc_thesis
 
         private static double GetElectronegativity(Atom atom)
         {
-            switch (atom.Symbol)
+            try
             {
-                case "H": return 2.20;
-                case "Li": return 0.98;
-                case "Be": return 1.57;
-                case "B": return 2.04;
-                case "C": return 2.55;
-                case "N": return 3.04;
-                case "O": return 3.44;
-                case "F": return 3.98;
-                case "Na": return 0.93;
-                case "Mg": return 1.31;
-                case "Al": return 1.61;
-                case "Si": return 1.90;
-                case "P": return 2.19;
-                case "S": return 2.58;
-                case "Cl": return 3.16;
-                case "K": return 0.82;
-                case "Ca": return 1.00;
-                case "Sc": return 1.36;
-                case "Ti": return 1.54;
-                case "V": return 1.64;
-                case "Cr": return 1.66;
-                case "Mn": return 1.55;
-                case "Fe": return 1.83;
-                case "Co": return 1.88;
-                case "Ni": return 1.91;
-                case "Cu": return 1.90;
-                case "Zn": return 1.65;
-                case "Ga": return 1.81;
-                case "Ge": return 2.01;
-                case "As": return 2.18;
-                case "Se": return 2.55;
-                case "Br": return 2.96;
-                case "Kr": return 3.00;
-                case "Rb": return 0.82;
-                case "Sr": return 0.95;
-                case "Y": return 1.22;
-                case "Zr": return 1.33;
-                case "Nb": return 1.6;
-                case "Mo": return 2.16;
-                case "Tc": return 1.9;
-                case "Ru": return 2.2;
-                case "Rh": return 2.28;
-                case "Pd": return 2.20;
-                case "Ag": return 1.93;
-                case "Cd": return 1.69;
-                case "In": return 1.78;
-                case "Sn": return 1.96;
-                case "Sb": return 2.05;
-                case "Te": return 2.1;
-                case "I": return 2.66;
-                case "Xe": return 2.60;
-                case "Cs": return 0.79;
-                case "Ba": return 0.89;
-                case "La": return 1.1;
-                case "Hf": return 1.3;
-                case "Ta": return 1.5;
-                case "W": return 2.36;
-                case "Re": return 1.9;
-                case "Os": return 2.2;
-                case "Ir": return 2.20;
-                case "Pt": return 2.28;
-                case "Au": return 2.54;
-                case "Hg": return 2.00;
-                case "Tl": return 1.62;
-                case "Pb": return 1.87;
-                case "Bi": return 2.02;
-                case "Po": return 2.0;
-                case "At": return 2.2;
-                case "Rn": return 2.2;
-                case "Fr": return 0.7;
-                case "Ra": return 0.9;
-                case "Ac": return 1.1;
-                case "Ce": return 1.12;
-                case "Pr": return 1.13;
-                case "Nd": return 1.14;
-                case "Pm": return 1.13;
-                case "Sm": return 1.17;
-                case "Eu": return 1.2;
-                case "Gd": return 1.2;
-                case "Tb": return 1.1;
-                case "Dy": return 1.22;
-                case "Ho": return 1.23;
-                case "Er": return 1.24;
-                case "Tm": return 1.25;
-                case "Yb": return 1.1;
-                case "Lu": return 1.27;
-                case "Th": return 1.3;
-                case "Pa": return 1.5;
-                case "U": return 1.38;
-                case "Np": return 1.36;
-                case "Pu": return 1.28;
-                case "Am": return 1.13;
-                case "Cm": return 1.28;
-                case "Bk": return 1.3;
-                case "Cf": return 1.3;
-                case "Es": return 1.3;
-                case "Fm": return 1.3;
-                case "Md": return 1.3;
-                case "No": return 1.3;
-                case "Lr": return 1.3;
-                default: return 0;
+                using (StreamReader reader = File.OpenText(@"..\..\Tables\ElementEN.csv"))
+                {
+                    string line;                    
+                    while ((line = reader.ReadLine()) != null)
+                    {
+                        string[] items = line.Split(';');
+                        if (items[0].Equals(atom.Symbol))
+                            return double.Parse(items[1], CultureInfo.InvariantCulture);
+                    }
+                }
             }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Could not read Element EN .csv file. Exception: " + ex.Message);
+            }
+            return 0;
         }
         
         //if loaded parameters file does not have specified bond types for parameters, returns 0
@@ -598,7 +510,7 @@ namespace bc_thesis
                         file.WriteLine("$$$$");
                     }
 
-                    GNUPlot(firstSet, secondSet);
+                    GNUPlot(firstSet, secondSet, outputFilePath);
                 }
             }
             catch(Exception ex)
@@ -607,7 +519,7 @@ namespace bc_thesis
             }
         }
 
-        private static void GNUPlot(List<Molecule> firstSet, List<Molecule> secondSet)
+        private static void GNUPlot(List<Molecule> firstSet, List<Molecule> secondSet, string outputFilePath)
         {
             Process plotProcess = new Process();
             plotProcess.StartInfo.FileName = Path.GetFullPath(Path.Combine(Environment.CurrentDirectory, @"..\..\gnuplot\bin\gnuplot.exe"));
@@ -615,13 +527,14 @@ namespace bc_thesis
             plotProcess.StartInfo.UseShellExecute = false;
             plotProcess.Start();
 
-
-
-            string inputFilePath = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), @"..\..\inputFile.txt"));
+            NumberFormatInfo nfi = new NumberFormatInfo();
+            nfi.NumberDecimalSeparator = ".";
+            string inputFilePath = Path.Combine(Path.GetDirectoryName(outputFilePath), @"inputFile.txt");
+            string graphFilePath = Path.Combine(Path.GetDirectoryName(outputFilePath), @"correlationGraph.png");
             using (StreamWriter inputFile = new StreamWriter(inputFilePath))
                 for (int i = 0; i < firstSet.Count; i++)
                     for (int j = 0; j < firstSet.ElementAt(i).NumOfAtoms; j++)
-                        inputFile.WriteLine($"{firstSet.ElementAt(i).Atoms.ElementAt(j).Charge} {secondSet.ElementAt(i).Atoms.ElementAt(j).Charge}");
+                        inputFile.WriteLine($"{firstSet.ElementAt(i).Atoms.ElementAt(j).Charge.ToString(nfi)} {secondSet.ElementAt(i).Atoms.ElementAt(j).Charge.ToString(nfi)}");
 
             using (StreamWriter gnuplotFile = plotProcess.StandardInput)
             {
@@ -629,7 +542,7 @@ namespace bc_thesis
                 gnuplotFile.WriteLine("set title \"Partial atomic charge correlation graph\"");
                 gnuplotFile.WriteLine("set xlabel \"First set of atom charges\"");
                 gnuplotFile.WriteLine("set ylabel \"Second set of atom charges\"");
-                gnuplotFile.WriteLine("set output \'..\\..\\correlationGraph.png\'");
+                gnuplotFile.WriteLine($"set output '{graphFilePath}'");
                 gnuplotFile.WriteLine($"plot '{inputFilePath}' notitle");//TODO graph always round values for some reason
             }
         }

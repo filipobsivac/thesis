@@ -1,0 +1,46 @@
+Element and its state;Orbital EN, V;Orbital hardness, V/e
+H, s_;7.18;6.422
+Li, s_;3.01;2.386
+Be, di_ di;4.79;3.794
+B, tr_ tr tr;6.31;4.978
+C, te_ te te te;8.06;6.565
+C, tr_ tr tr pp;8.87;6.766
+C, tr tr tr pp;5.67;5.499
+C, di_ di pp pp;10.47;6.972
+C, di di pp pp;5.73;5.473
+C, cyclopropane, endo;7.37;5.720
+C, cyclopropane, exo;8.26;5.764
+C, cyclobutane, endo;7.56;5.730
+C, cyclobutane, exo;8.08;5.755
+N, te2 te_ te te;11.49;7.456
+N, te2_ te te te;4.57;9.580
+N, tr2 tr_ tr pp;12.82;7.800
+N, tr2 tr tr pp_;7.90;6.238
+N, tr2_ tr tr pp;5.34;9.769
+N, di2 di_ pp pp;15.59;8.327
+N, di2 di pp_ pp;7.87;6.325
+N, di2_ di pp pp;7.37;9.885
+O, te2 te2 te_ te;15.25;9.150
+O, te2_ te2 te te;7.88;10.825
+O, tr2 tr2 tr_ pp;17.06;9.595
+O, tr2 tr2 tr pp;10.08;7.622
+O, tr2_ tr2 tr pp;8.96;10.825
+F, te2 te2 te2 te_;13.24;8.630
+F, te2_ te2 te2 te;18.16;8.180
+Si, te_ te te te;7.26;4.557
+P, te2 te_ te te;8.89;5.679
+P, te2_ te te te;6.12;5.973
+P, te_ te te te dp;11.70;6.005
+P, te te te te dp_;1.79;1.800
+S, te2 te2 te_ te;10.14;5.361
+S, te2_ te2 te te;6.59;7.045
+S, tr2 tr2 tr_ pp;10.89;5.445
+S, tr2 tr2 tr pp_;7.73;4.972
+S, tr2_ tr2 tr pp;7.04;7.100
+Cl, te2 te2 te2 te_;10.52;5.610
+Cl, te2_ te2 te2 te;12.27;5.460
+Ge, te_ te te te;8.07;3.408
+Br, te2 te2 te2 te_;9.03;4.730
+Br, te2_ te2 te2 te;11.36;4.510
+I, te2 te2 te2 te_;8.66;4.460
+I, te2_ te2 te2 te;10.35;3.960

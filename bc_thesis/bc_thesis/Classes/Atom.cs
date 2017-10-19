@@ -14,13 +14,15 @@ namespace thesis.Classes
         public double Y { get; set; }
         public double Z { get; set; }
         public double Charge { get; set; }
-
+        // <type: s/p/n, charge>
+        public Dictionary<string, double> OrbitalCharges { get; set; }
         // <bonded atom ID, bond type>       
         public Dictionary<int, int> Bonds { get; set; }
 
         public Atom()
         {            
             Bonds = new Dictionary<int, int>();
+            OrbitalCharges = new Dictionary<string, double>();
         }
     }
 }

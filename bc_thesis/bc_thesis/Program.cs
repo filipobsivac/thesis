@@ -210,7 +210,7 @@ namespace bc_thesis
                 Console.WriteLine("Could not read Element EN .csv file. Exception: " + ex.Message);
             }
             return 0;
-        }
+        }        
         
         //if loaded parameters file does not have specified bond types for parameters, returns 0
         private static int GetHighestBondType(Molecule m, Atom a)
@@ -353,17 +353,6 @@ namespace bc_thesis
             return Vector<double>.Build.Dense(arr);
         }
 
-        private static double CountGeometricAverageEN(Vector<double> vector)
-        {
-            double avgEN = 1;
-
-            for(int i = 0; i < vector.Count; i++)
-                avgEN *= vector[i];
-            avgEN = Math.Pow(avgEN, 1.0 / vector.Count);
-
-            return avgEN;
-        }
-
         private static void SolveMG(string outputFilePath)
         {
             try
@@ -376,10 +365,13 @@ namespace bc_thesis
                         var d = BuildDegreeMatrix(molecule);
                         var i = BuildIdentityMatrix(molecule);
                         var vector = BuildMGVector(molecule);
-
+                        double avgEN = 1;
+                        for (int j = 0; j < vector.Count; j++)
+                            avgEN *= vector[j];
+                        avgEN = Math.Pow(avgEN, 1.0 / vector.Count);
                         Matrix<double> s = d - a + i;
                         var x = s.Solve(vector);
-                        var results = (x - vector) * (1.0 / CountGeometricAverageEN(vector));
+                        var results = (x - vector) * (1.0 / avgEN);
 
                         SaveResults(file, molecule, results);
                     }
@@ -458,20 +450,6 @@ namespace bc_thesis
 
         private static void GenerateStatistics(string firstFilePath, string secondFilePath, string outputFilePath)
         {
-            double d_max = 0;
-
-            double d_avg = 0;
-            double sum_avg = 0;
-
-            double rmsd = 0;
-            double sum_rmsd = 0;
-            
-            double pearson = 0;
-            double sum_xy = 0;
-            double sum_xsq = 0;
-            double sum_ysq = 0;
-            double sum_x = 0;
-            double sum_y = 0;
             try
             {
                 List<Molecule> firstSet = LoadMoleculesFromOutputFile(firstFilePath);
@@ -481,7 +459,22 @@ namespace bc_thesis
                 {
                     for(int i = 0; i < firstSet.Count; i++)
                     {
-                        for(int j = 0; j < firstSet.ElementAt(i).NumOfAtoms; j++)
+                        double d_max = 0;
+
+                        double d_avg = 0;
+                        double sum_avg = 0;
+
+                        double rmsd = 0;
+                        double sum_rmsd = 0;
+
+                        double pearson = 0;
+                        double sum_xy = 0;
+                        double sum_xsq = 0;
+                        double sum_ysq = 0;
+                        double sum_x = 0;
+                        double sum_y = 0;
+
+                        for (int j = 0; j < firstSet.ElementAt(i).NumOfAtoms; j++)
                         {
                             double x = firstSet.ElementAt(i).Atoms.ElementAt(j).Charge;
                             double y = secondSet.ElementAt(i).Atoms.ElementAt(j).Charge;
@@ -497,6 +490,7 @@ namespace bc_thesis
                             sum_xsq += x * x;
                             sum_ysq += y * y;
                         }
+
                         d_avg = sum_avg / (double)firstSet.ElementAt(i).NumOfAtoms;
                         rmsd = Math.Sqrt(sum_rmsd / (double)firstSet.ElementAt(i).NumOfAtoms);
                         int n = firstSet.ElementAt(i).NumOfAtoms;
@@ -529,8 +523,10 @@ namespace bc_thesis
 
             NumberFormatInfo nfi = new NumberFormatInfo();
             nfi.NumberDecimalSeparator = ".";
+
             string inputFilePath = Path.Combine(Path.GetDirectoryName(outputFilePath), @"inputFile.txt");
             string graphFilePath = Path.Combine(Path.GetDirectoryName(outputFilePath), @"correlationGraph.png");
+
             using (StreamWriter inputFile = new StreamWriter(inputFilePath))
                 for (int i = 0; i < firstSet.Count; i++)
                     for (int j = 0; j < firstSet.ElementAt(i).NumOfAtoms; j++)
@@ -543,8 +539,162 @@ namespace bc_thesis
                 gnuplotFile.WriteLine("set xlabel \"First set of atom charges\"");
                 gnuplotFile.WriteLine("set ylabel \"Second set of atom charges\"");
                 gnuplotFile.WriteLine($"set output '{graphFilePath}'");
-                gnuplotFile.WriteLine($"plot '{inputFilePath}' notitle");//TODO graph always round values for some reason
+                gnuplotFile.WriteLine($"plot '{inputFilePath}' notitle");
             }
+        }
+
+        private static void SetOrbitalCharges(Molecule molecule)
+        {
+            int bondType = 1;
+            foreach (var atom in molecule.Atoms)
+            {
+                switch (atom.Symbol)
+                {
+                    case "H":
+                        atom.OrbitalCharges.Add("s", GetOrbitalCharge("H", "s_"));
+                        break;
+                    case "C":
+                        bondType = 1;
+                        foreach (var bond in atom.Bonds)
+                        {
+                            if (bond.Value == 2)
+                                bondType = 2;
+                            if (bond.Value == 3)
+                                bondType = 3;
+                        }
+                        switch (bondType)
+                        {
+                            case 1:
+                                for (int i = 0; i < 4; i++)
+                                    atom.OrbitalCharges.Add("s", GetOrbitalCharge("C", "te te te te"));
+                                break;
+                            case 2:
+                                atom.OrbitalCharges.Add("p", GetOrbitalCharge("C", "tr tr tr pp_"));
+                                for (int i = 0; i < 3; i++)
+                                    atom.OrbitalCharges.Add("s", GetOrbitalCharge("C", "tr_ tr tr pp"));
+                                break;
+                            case 3:
+                                for (int i = 0; i < 2; i++)
+                                {
+                                    atom.OrbitalCharges.Add("s", GetOrbitalCharge("C", "di_ di pp pp"));
+                                    atom.OrbitalCharges.Add("p", GetOrbitalCharge("C", "di di pp_ pp"));
+                                }
+                                break;
+                            default: break;
+                        }
+                        break;
+                    case "N":
+                        bondType = 1;
+                        foreach (var bond in atom.Bonds)
+                        {
+                            if (bond.Value == 2)
+                                bondType = 2;
+                            if (bond.Value == 3)
+                                bondType = 3;
+                        }
+                        switch (bondType)
+                        {
+                            case 1:
+                                atom.OrbitalCharges.Add("n", GetOrbitalCharge("N", "te2_ te te te"));
+                                for (int i = 0; i < 3; i++)
+                                    atom.OrbitalCharges.Add("s", GetOrbitalCharge("N", "te2 te_ te te"));
+                                break;
+                            case 2:
+                                atom.OrbitalCharges.Add("n", GetOrbitalCharge("N", "tr2_ tr tr pp"));
+                                atom.OrbitalCharges.Add("p", GetOrbitalCharge("N", "tr2 tr tr pp_"));
+                                for (int i = 0; i < 2; i++)
+                                    atom.OrbitalCharges.Add("s", GetOrbitalCharge("N", "tr2 tr_ tr pp"));
+                                break;
+                            case 3:
+                                atom.OrbitalCharges.Add("n", GetOrbitalCharge("N", "di2_ di pp pp"));
+                                atom.OrbitalCharges.Add("s", GetOrbitalCharge("N", "di2 di_ pp pp"));
+                                for (int i = 0; i < 2; i++)
+                                    atom.OrbitalCharges.Add("p", GetOrbitalCharge("N", "di2 di pp_ pp"));
+                                break;
+                            default: break;
+                        }
+                        break;
+                    case "O":
+                        bondType = 1;
+                        foreach (var bond in atom.Bonds)
+                        {
+                            if (bond.Value == 2)
+                                bondType = 2;
+                        }
+                        switch (bondType)
+                        {
+                            case 1:
+                                for (int i = 0; i < 2; i++)
+                                {
+                                    atom.OrbitalCharges.Add("n", GetOrbitalCharge("O", "te2_ te2 te te"));
+                                    atom.OrbitalCharges.Add("s", GetOrbitalCharge("O", "te2 te2 te_ te"));
+                                }
+                                break;
+                            case 2:
+                                atom.OrbitalCharges.Add("s", GetOrbitalCharge("O", "tr2 tr2 tr_ pp"));
+                                atom.OrbitalCharges.Add("p", GetOrbitalCharge("O", "tr2 tr2 tr pp_"));
+                                for (int i = 0; i < 2; i++)
+                                    atom.OrbitalCharges.Add("n", GetOrbitalCharge("O", "tr2 tr2 tr pp"));
+                                break;
+                            default: break;
+                        }
+                        break;
+                    case "S":
+                        bondType = 1;
+                        foreach (var bond in atom.Bonds)
+                        {
+                            if (bond.Value == 2)
+                                bondType = 2;
+                        }
+                        switch (bondType)
+                        {
+                            case 1:
+                                for (int i = 0; i < 2; i++)
+                                {
+                                    atom.OrbitalCharges.Add("n", GetOrbitalCharge("S", "te2_ te2 te te"));
+                                    atom.OrbitalCharges.Add("s", GetOrbitalCharge("S", "te2 te2 te_ te"));
+                                }
+                                break;
+                            case 2:
+                                atom.OrbitalCharges.Add("s", GetOrbitalCharge("S", "tr2 tr2 tr_ pp"));
+                                atom.OrbitalCharges.Add("p", GetOrbitalCharge("S", "tr2 tr2 tr pp_"));
+                                for (int i = 0; i < 2; i++)
+                                    atom.OrbitalCharges.Add("n", GetOrbitalCharge("S", "tr2_ tr2 tr pp"));
+                                break;
+                            default: break;
+                        }
+                        break;
+                    default: break;
+                }
+            }
+        }
+
+        private static double GetOrbitalCharge(string symbol, string state)
+        {
+            try
+            {
+                using (StreamReader reader = File.OpenText(@"..\..\Tables\OrbitalHardnessAndEN.csv"))
+                {
+                    string line;
+                    bool skip = true;
+                    while ((line = reader.ReadLine()) != null)
+                    {
+                        if (skip)
+                        {
+                            skip = false;
+                            continue;
+                        }
+                        string[] items = line.Split(';');
+                        if (items[0].Equals(symbol) && items[1].Equals(state))
+                            return double.Parse(items[2], CultureInfo.InvariantCulture);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Could not get orbital charges. Exception: " + ex.Message);
+            }
+            return 0;
         }
     }
 }

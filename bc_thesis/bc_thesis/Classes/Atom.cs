@@ -9,6 +9,7 @@ namespace thesis.Classes
     {
         //atom number in molecule
         public int ID { get; set; }
+        public int OGCID { get; set; }
         public string Symbol { get; set; }
         public double X { get; set; }
         public double Y { get; set; }
@@ -18,11 +19,15 @@ namespace thesis.Classes
         public Dictionary<string, double> OrbitalCharges { get; set; }
         // <bonded atom ID, bond type>       
         public Dictionary<int, int> Bonds { get; set; }
+        public string OrbitalID { get; set; }
+        // <bonded orbital ID, orbital charge type: s/p/n/x}>
+        public Dictionary<string, string> OrbitalBonds { get; set; }
 
         public Atom()
         {            
             Bonds = new Dictionary<int, int>();
             OrbitalCharges = new Dictionary<string, double>();
+            OrbitalBonds = new Dictionary<string, string>();
         }
     }
 }

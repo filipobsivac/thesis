@@ -5,9 +5,9 @@ Be;di_ di;4.79;3.794
 B;tr_ tr tr;6.31;4.978
 C;te_ te te te;8.06;6.565
 C;tr_ tr tr pp;8.87;6.766
-C;tr tr tr pp;5.67;5.499
+C;tr tr tr pp_;5.67;5.499
 C;di_ di pp pp;10.47;6.972
-C;di di pp pp;5.73;5.473
+C;di di pp_ pp;5.73;5.473
 C;cyclopropane, endo;7.37;5.720
 C;cyclopropane, exo;8.26;5.764
 C;cyclobutane, endo;7.56;5.730
@@ -23,7 +23,7 @@ N;di2_ di pp pp;7.37;9.885
 O;te2 te2 te_ te;15.25;9.150
 O;te2_ te2 te te;7.88;10.825
 O;tr2 tr2 tr_ pp;17.06;9.595
-O;tr2 tr2 tr pp;10.08;7.622
+O;tr2 tr2 tr pp_;10.08;7.622
 O;tr2_ tr2 tr pp;8.96;10.825
 F;te2 te2 te2 te_;13.24;8.630
 F;te2_ te2 te2 te;18.16;8.180

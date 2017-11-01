@@ -45,8 +45,8 @@ namespace bc_thesis
                 default: break;
             }
 
-            /*
-            foreach(var atom in molecules[0].Atoms)
+            #region OGC Tests
+            foreach (var atom in molecules[0].Atoms)
             {
                 Console.Write($"{atom.Symbol} {atom.ID} - ");
                 foreach(var b in atom.Bonds)
@@ -98,11 +98,23 @@ namespace bc_thesis
             Console.WriteLine();
 
             var vector = BuildOGCVector(m);
-            for(int i = 0; i < m.NumOfAtoms; i++)
-                Console.WriteLine($"{m.Atoms[i].OrbitalBonds.First(x => !x.Value.Equals("x")).Value} {vector[i]}");
+            Matrix<double> s = d - a + id;
+            var equalizedEN = s.Solve(vector);
+            for (int i = 0; i < m.NumOfAtoms; i++)
+            {
+                var orbType = m.Atoms[i].OrbitalBonds.First(x => !x.Value.Equals("x")).Value;
+                var orbString = "n";
+                if (!orbType.Equals("n"))
+                {
+                    var bondedOrbID = m.Atoms[i].OrbitalBonds.FirstOrDefault(x => !x.Value.Equals("x")).Key;
+                    var bondedOrbSymbol = m.Atoms.Find(x => x.OrbitalID == bondedOrbID).Symbol;
+                    orbString = $"{orbType}({m.Atoms[i].Symbol}-{bondedOrbSymbol})";
+                }                
+                Console.WriteLine($"{orbString}\t{vector[i]}\t{equalizedEN[i]}");
+            }
 
             Console.ReadKey();
-            */
+            #endregion
         }
 
         private static bool CanParseArguments(string[] items)
@@ -787,7 +799,7 @@ namespace bc_thesis
                         switch (bondType)
                         {
                             case 1:                                
-                                atom.OrbitalCharges.Add("s", GetOrbitalCharge("C", "te te te te"));
+                                atom.OrbitalCharges.Add("s", GetOrbitalCharge("C", "te_ te te te"));
                                 break;
                             case 2:
                                 atom.OrbitalCharges.Add("s", GetOrbitalCharge("C", "tr_ tr tr pp"));
@@ -832,7 +844,7 @@ namespace bc_thesis
                             case 2:
                                 atom.OrbitalCharges.Add("s", GetOrbitalCharge("O", "tr2 tr2 tr_ pp"));
                                 atom.OrbitalCharges.Add("p", GetOrbitalCharge("O", "tr2 tr2 tr pp_"));
-                                atom.OrbitalCharges.Add("n", GetOrbitalCharge("O", "tr2 tr2 tr pp"));
+                                atom.OrbitalCharges.Add("n", GetOrbitalCharge("O", "tr2_ tr2 tr pp"));
                                 break;
                             default: break;
                         }

@@ -1,0 +1,5 @@
+Average values for the entire set of molecules:
+Largest absolute difference: Není číslo
+Average absolute difference: Není číslo
+Root-mean-square deviation: Není číslo
+Pearson correlation coefficient: Není číslo

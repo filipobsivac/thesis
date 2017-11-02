@@ -15,6 +15,7 @@ namespace thesis.Classes
         public double Y { get; set; }
         public double Z { get; set; }
         public double Charge { get; set; }
+        public int HighestBondType { get; set; }
         // <type: s/p/n, charge>
         public Dictionary<string, double> OrbitalCharges { get; set; }
         // <bonded atom ID, bond type>       

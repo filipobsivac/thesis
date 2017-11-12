@@ -19,30 +19,40 @@ namespace bc_thesis
         
         static void Main(string[] args)
         {
-            // ..\..\TestFiles\set01.sdf ..\..\TestFiles\ElemBond.txt eem ..\..\outEEM.txt
-            // ..\..\TestFiles\set01.sdf ..\..\TestFiles\Element.txt eem ..\..\outEEM.txt
-            // ..\..\TestFiles\set01.sdf ..\..\TestFiles\ElemBond.txt mgc ..\..\outMGC.txt
-            // ..\..\TestFiles\set01.sdf ..\..\TestFiles\Element.txt mgc ..\..\outMGC.txt
-            // ..\..\TestFiles\acetonitrile.sdf ..\..\TestFiles\ElemBond.txt mgc ..\..\outMGC.txt
-            // ..\..\TestFiles\acetonitrile.sdf ..\..\TestFiles\Element.txt mgc ..\..\outMGC.txt 
-            // ..\..\outEEM.txt ..\..\outMGC.txt stats ..\..\outSTATS.txt
+            // eem ..\..\TestFiles\set01.sdf ..\..\outEEM.txt ..\..\TestFiles\ElemBond.txt 
+            // eem ..\..\TestFiles\set01.sdf ..\..\outEEM.txt ..\..\TestFiles\Element.txt
+            // mgc ..\..\TestFiles\set01.sdf ..\..\outMGC.txt
+            // mgc ..\..\TestFiles\acetonitrile.sdf ..\..\outMGC.txt
+            // stats ..\..\outEEM.txt ..\..\outMGC.txt ..\..\outSTATS.txt y
+            // stats ..\..\outMGC.txt ..\..\outEEM.txt ..\..\outSTATS.txt n
             if (!CanParseArguments(args))
-                return;                        
-            string firstFilePath = Path.GetFullPath(Path.Combine(Environment.CurrentDirectory, args[0]));
-            string secondFilePath = Path.GetFullPath(Path.Combine(Environment.CurrentDirectory, args[1]));
-            string outputFilePath = Path.GetFullPath(Path.Combine(Environment.CurrentDirectory, args[3]));
-            if (!args[2].Equals("stats"))
+                return;
+            if (args[0].Equals("stats"))
             {
-                LoadMolecules(firstFilePath);
-                LoadParameters(secondFilePath);
+                string firstFilePath = Path.GetFullPath(Path.Combine(Environment.CurrentDirectory, args[1]));
+                string secondFilePath = Path.GetFullPath(Path.Combine(Environment.CurrentDirectory, args[2]));
+                string outputFilePath = Path.GetFullPath(Path.Combine(Environment.CurrentDirectory, args[3]));
+                if (args[4].Equals("y"))
+                    paramBonds = true;
+                if (args[4].Equals("n"))
+                    paramBonds = false;
+                GenerateStatistics(firstFilePath, secondFilePath, outputFilePath);
             }
-            switch (args[2])
+            else
             {
-                case "eem": SolveEEM(outputFilePath); break;
-                case "mgc": SolveMGC(outputFilePath); break;
-                case "ogc": SolveOGC(outputFilePath); break;
-                case "stats": GenerateStatistics(firstFilePath, secondFilePath, outputFilePath); break;                
-                default: break;
+                string moleculesFilePath = Path.GetFullPath(Path.Combine(Environment.CurrentDirectory, args[1]));
+                LoadMolecules(moleculesFilePath);
+                string outputFilePath = Path.GetFullPath(Path.Combine(Environment.CurrentDirectory, args[2]));
+                if (args[0].Equals("eem"))
+                {
+                    string parametersFilePath = Path.GetFullPath(Path.Combine(Environment.CurrentDirectory, args[3]));
+                    LoadParameters(parametersFilePath);
+                    SolveEEM(outputFilePath);
+                }
+                if (args[0].Equals("mgc"))
+                    SolveMGC(outputFilePath);
+                if (args[0].Equals("ogc"))
+                    SolveOGC(outputFilePath);                    
             }
 
             #region OGC Tests
@@ -120,37 +130,40 @@ namespace bc_thesis
             Console.ReadKey();
         }
 
-        private static bool CanParseArguments(string[] items)
+        private static void PrintHelp()
         {
-            if(items.Length != 4)
-            {
-                Console.WriteLine("Arguments must be entered in the following format:");
-                Console.WriteLine("\"<sdf file> <parameters file> <method> <output file>\" or \"<first molecules file> <second molecules file> \"stats\" <output file>\"");
-                return false;
-            }
-            else if (!(items[2].Equals("eem") || items[2].Equals("mgc") || items[2].Equals("ogc") || items[2].Equals("stats")))
-            {
-                Console.WriteLine("Incorrect method name. Only \"eem\", \"mgc\", \"ogc\" or \"stats\" supported.");
-                return false;
-            }
-            return true;
+            Console.WriteLine("Arguments must be entered in the following format:");
+            Console.WriteLine("\"<method> <molecules file> <output file> <parameters file - optional>\" or \"\"stats\" <first molecules file> <second molecules file> <output file> <EEM bonds>\"");
+            Console.WriteLine("<method> - Method name. Only \"eem\", \"mgc\" or \"ogc\" supported.");
+            Console.WriteLine("<molecules file> - Path and file name of the set of molecules.");
+            Console.WriteLine("<output file> - Desired path and file name for output file.");
+            Console.WriteLine("<parameters file> - Required only for EEM.");
+            Console.WriteLine("<EEM bonds> - \"y\" or \"n\" to specify whether stats should be generated for atom types according to their bond types or not.");
         }
 
-        private static bool CanParseArguments2(string[] items)
+        private static bool CanParseArguments(string[] items)
         {
             if (items.Length == 0)
             {
-                Console.WriteLine("Arguments must be entered in the following format:");
-                Console.WriteLine("\"<method> <molecules file> <output file> <parameters file - optional>\" or \"\"stats\" <first molecules file> <second molecules file> <output file> <EEM bonds>\"");
-                Console.WriteLine("<method> - Method name. Only \"eem\", \"mgc\" or \"ogc\" supported.");
-                Console.WriteLine("<output file> - Desired path and file name for output file.");
-                Console.WriteLine("<parameters file> - Required only for EEM method.");
-                Console.WriteLine("<EEM bonds> - y/n to specify if stats should be generated for atom types by their");
+                PrintHelp();
                 return false;
             }
-            else if (!(items[2].Equals("eem") || items[2].Equals("mgc") || items[2].Equals("ogc") || items[2].Equals("stats")))
+            else if (!(items[0].Equals("eem") || items[0].Equals("mgc") || items[0].Equals("ogc") || items[0].Equals("stats")))
             {
                 Console.WriteLine("Incorrect method name. Only \"eem\", \"mgc\", \"ogc\" or \"stats\" supported.");
+                PrintHelp();
+                return false;
+            }      
+            else if(items[0].Equals("stats") && items.Length != 5)
+            {
+                Console.WriteLine("Incorrect number of arguments for statistics generation.");
+                PrintHelp();
+                return false;
+            }  
+            else if(((items[0].Equals("mgc") || items[0].Equals("ogc")) && items.Length != 3) || (items[0].Equals("eem") && items.Length != 4))
+            {
+                Console.WriteLine("Incorrect number of arguments for this method.");
+                PrintHelp();
                 return false;
             }
             return true;
@@ -622,13 +635,13 @@ namespace bc_thesis
 
             return set;
         }
-
+        
         private static void GenerateStatistics(string firstFilePath, string secondFilePath, string outputFilePath)
         {
             try
             {
                 List<Molecule> firstSet = LoadMoleculesFromOutputFile(firstFilePath);
-                List<Molecule> secondSet = LoadMoleculesFromOutputFile(secondFilePath);
+                List<Molecule> secondSet = LoadMoleculesFromOutputFile(secondFilePath);                
 
                 using (StreamWriter file = new StreamWriter(outputFilePath))
                 {
@@ -637,44 +650,50 @@ namespace bc_thesis
                     double avg_rmsd = 0;
                     double avg_pearson = 0;
 
+                    Dictionary<string, List<double>> xValues = new Dictionary<string, List<double>>() { { "molecule", new List<double>() } };
+                    Dictionary<string, List<double>> yValues = new Dictionary<string, List<double>>() { { "molecule", new List<double>() } };
+                    
                     for (int i = 0; i < firstSet.Count; i++)
-                    {                        
+                    {
                         double d_max = 0;
-                        
-                        double d_avg = 0;                        
+                        double d_avg = 0;
                         double sum_avg = 0;
-                        
-                        double rmsd = 0;                        
+                        double rmsd = 0;
                         double sum_rmsd = 0;
-                        
-                        double pearson = 0;                        
-                        double sum_xy = 0;                        
-                        double sum_xsq = 0;                        
-                        double sum_ysq = 0;                        
-                        double sum_x = 0;                        
-                        double sum_y = 0;
+                        double pearson = 0;
+
+                        xValues["molecule"].RemoveRange(0, xValues["molecule"].Count);
+                        yValues["molecule"].RemoveRange(0, yValues["molecule"].Count);
 
                         for (int j = 0; j < firstSet.ElementAt(i).NumOfAtoms; j++)
                         {
                             double x = firstSet.ElementAt(i).Atoms.ElementAt(j).Charge;
                             double y = secondSet.ElementAt(i).Atoms.ElementAt(j).Charge;
 
-                            if(Math.Abs(x - y) > d_max)
+                            string symbol = firstSet.ElementAt(i).Atoms.ElementAt(j).Symbol.Trim();
+                            if (paramBonds)
+                                symbol += firstSet.ElementAt(i).Atoms.ElementAt(j).HighestBondType.ToString();
+
+                            if (!xValues.ContainsKey(symbol))
+                            {
+                                xValues.Add(symbol, new List<double>());
+                                yValues.Add(symbol, new List<double>());                                
+                            }
+                            xValues[symbol].Add(x);
+                            yValues[symbol].Add(y);
+                            xValues["molecule"].Add(x);
+                            yValues["molecule"].Add(y);
+
+                            if (Math.Abs(x - y) > d_max)
                                 d_max = Math.Abs(x - y);
 
                             sum_avg += Math.Abs(x - y);
                             sum_rmsd += (x - y) * (x - y);
-                            sum_x += x;
-                            sum_y += y;
-                            sum_xy += x * y;
-                            sum_xsq += x * x;
-                            sum_ysq += y * y;
                         }
 
                         d_avg = sum_avg / (double)firstSet.ElementAt(i).NumOfAtoms;
                         rmsd = Math.Sqrt(sum_rmsd / (double)firstSet.ElementAt(i).NumOfAtoms);
-                        int n = firstSet.ElementAt(i).NumOfAtoms;
-                        pearson = (n * sum_xy - sum_x * sum_y) / ( Math.Sqrt(n * sum_xsq - sum_x * sum_x) * Math.Sqrt(n * sum_ysq - sum_y * sum_y) );
+                        pearson = MathNet.Numerics.Statistics.Correlation.Pearson(xValues["molecule"], yValues["molecule"]);
 
                         avg_d_avg += d_avg;
                         avg_d_max += d_max;
@@ -689,7 +708,7 @@ namespace bc_thesis
                         file.WriteLine("$$$$");
                     }
 
-                    string avgStatsFilePath = Path.Combine(Path.GetDirectoryName(outputFilePath), $"{Path.GetFileNameWithoutExtension(outputFilePath)}AvgStats.txt");                                    
+                    string avgStatsFilePath = Path.Combine(Path.GetDirectoryName(outputFilePath), $"{Path.GetFileNameWithoutExtension(outputFilePath)}AvgStats.txt");
                     using (StreamWriter avgStatsFile = new StreamWriter(avgStatsFilePath))
                     {
                         avgStatsFile.WriteLine("Average values for the entire set of molecules:");
@@ -697,142 +716,48 @@ namespace bc_thesis
                         avgStatsFile.WriteLine($"Average absolute difference: {avg_d_avg / (double)firstSet.Count}");
                         avgStatsFile.WriteLine($"Root-mean-square deviation: {avg_rmsd / (double)firstSet.Count}");
                         avgStatsFile.WriteLine($"Pearson correlation coefficient: {avg_pearson / (double)firstSet.Count}");
-                    }
+                        avgStatsFile.WriteLine();
 
-                    GNUPlot(firstSet, secondSet, outputFilePath);
-                }
-            }
-            catch(Exception ex)
-            {
-                Console.WriteLine("Could not save results. Exception: " + ex.Message);
-            }
-        }
-
-        private static void GenerateStatistics2(string firstFilePath, string secondFilePath, string outputFilePath)
-        {
-            try
-            {
-                List<Molecule> firstSet = LoadMoleculesFromOutputFile(firstFilePath);
-                List<Molecule> secondSet = LoadMoleculesFromOutputFile(secondFilePath);
-
-                using (StreamWriter file = new StreamWriter(outputFilePath))
-                {
-                    Dictionary<string, double> d_max = new Dictionary<string, double>() { {"set", 0} };
-                    Dictionary<string, double> d_avg = new Dictionary<string, double>() { { "set", 0 } };
-                    Dictionary<string, double> sum_avg = new Dictionary<string, double>() { { "set", 0 } };
-                    Dictionary<string, double> rmsd = new Dictionary<string, double>() { { "set", 0 } };
-                    Dictionary<string, double> sum_rmsd = new Dictionary<string, double>() { { "set", 0 } };
-                    Dictionary<string, double> pearson = new Dictionary<string, double>() { { "set", 0 } };
-                    Dictionary<string, double> sum_xy = new Dictionary<string, double>() { { "set", 0 } };
-                    Dictionary<string, double> sum_xsq = new Dictionary<string, double>() { { "set", 0 } };
-                    Dictionary<string, double> sum_ysq = new Dictionary<string, double>() { { "set", 0 } };
-                    Dictionary<string, double> sum_x = new Dictionary<string, double>() { { "set", 0 } };
-                    Dictionary<string, double> sum_y = new Dictionary<string, double>() { { "set", 0 } };
-                    Dictionary<string, double> avg_d_avg = new Dictionary<string, double>() { { "set", 0 } };
-                    Dictionary<string, double> avg_d_max = new Dictionary<string, double>() { { "set", 0 } };
-                    Dictionary<string, double> avg_rmsd = new Dictionary<string, double>() { { "set", 0 } };
-                    Dictionary<string, double> avg_pearson = new Dictionary<string, double>() { { "set", 0 } };
-                    int numOfAtomsInSet = 0;
-
-                    for (int i = 0; i < firstSet.Count; i++)
-                    {
-                        d_max["set"] = 0;
-                        d_avg["set"] = 0;
-                        sum_avg["set"] = 0;
-                        rmsd["set"] = 0;
-                        sum_rmsd["set"] = 0;
-                        pearson["set"] = 0;
-                        sum_xy["set"] = 0;
-                        sum_xsq["set"] = 0;
-                        sum_ysq["set"] = 0;
-                        sum_x["set"] = 0;
-                        sum_y["set"] = 0;
-
-                        for (int j = 0; j < firstSet.ElementAt(i).NumOfAtoms; j++)
+                        foreach (var atomType in xValues.Keys.ToList())
                         {
-                            double x = firstSet.ElementAt(i).Atoms.ElementAt(j).Charge;
-                            double y = secondSet.ElementAt(i).Atoms.ElementAt(j).Charge;
+                            if (atomType.Equals("molecule"))
+                                continue;
 
-                            string symbol = firstSet.ElementAt(i).Atoms.ElementAt(j).Symbol.Trim();
-                            if (firstSet.ElementAt(i).Atoms.ElementAt(j).Bonds.Count > 0)
-                                symbol += firstSet.ElementAt(i).Atoms.ElementAt(j).Bonds.First().Value.ToString();
-                            else if(secondSet.ElementAt(i).Atoms.ElementAt(j).Bonds.Count > 0)
-                                symbol += secondSet.ElementAt(i).Atoms.ElementAt(j).Bonds.First().Value.ToString();
+                            double d_max = 0;
+                            double d_avg = 0;
+                            double sum_avg = 0;
+                            double rmsd = 0;
+                            double sum_rmsd = 0;
+                            double pearson = 0;
 
-                            if (!d_max.ContainsKey(symbol))
+                            for (int i = 0; i < xValues[atomType].Count; i++)
                             {
-                                d_max.Add(symbol, 0);
-                                d_avg.Add(symbol, 0);
-                                sum_avg.Add(symbol, 0);
-                                rmsd.Add(symbol, 0);
-                                sum_rmsd.Add(symbol, 0);
-                                pearson.Add(symbol, 0);
-                                sum_xy.Add(symbol, 0);
-                                sum_xsq.Add(symbol, 0);
-                                sum_ysq.Add(symbol, 0);
-                                sum_x.Add(symbol, 0);
-                                sum_y.Add(symbol, 0);
+                                double x = xValues[atomType][i];
+                                double y = yValues[atomType][i];
 
-                                avg_d_avg.Add(symbol, 0);
-                                avg_d_max.Add(symbol, 0);
-                                avg_rmsd.Add(symbol, 0);
-                                avg_pearson.Add(symbol, 0);
+                                if (Math.Abs(x - y) > d_max)
+                                    d_max = Math.Abs(x - y);
+
+                                sum_avg += Math.Abs(x - y);
+                                sum_rmsd += (x - y) * (x - y);
                             }
 
-                            List<string> l = new List<string>() {"set", symbol};
-                            foreach (var value in l)
-                            {
-                                if (Math.Abs(x - y) > d_max[value])
-                                    d_max[value] = Math.Abs(x - y);
+                            d_avg = sum_avg / (double)xValues[atomType].Count;
+                            rmsd = Math.Sqrt(sum_rmsd / (double)xValues[atomType].Count);
+                            pearson = MathNet.Numerics.Statistics.Correlation.Pearson(xValues[atomType], yValues[atomType]);
 
-                                sum_avg[value] += Math.Abs(x - y);
-                                sum_rmsd[value] += (x - y) * (x - y);
-                                sum_x[value] += x;
-                                sum_y[value] += y;
-                                sum_xy[value] += x * y;
-                                sum_xsq[value] += x * x;
-                                sum_ysq[value] += y * y;
-                            }
-                            numOfAtomsInSet++;
+                            avgStatsFile.WriteLine($"Values for {atomType}:");
+                            avgStatsFile.WriteLine($"Largest absolute difference: {d_max}");
+                            avgStatsFile.WriteLine($"Average absolute difference: {d_avg}");
+                            avgStatsFile.WriteLine($"Root-mean-square deviation: {rmsd}");
+                            avgStatsFile.WriteLine($"Pearson correlation coefficient: {pearson}");
+                            avgStatsFile.WriteLine(xValues[atomType].Count);
                         }
-
-                        List<string> list = new List<string>(d_max.Keys);
-                        list.Add("set");
-                        foreach (var value in list)
-                        {
-                            d_avg[value] = sum_avg[value] / (double)firstSet.ElementAt(i).NumOfAtoms;
-                            rmsd[value] = Math.Sqrt(sum_rmsd[value] / (double)firstSet.ElementAt(i).NumOfAtoms);
-                            int n = firstSet.ElementAt(i).NumOfAtoms;
-                            pearson[value] = (n * sum_xy[value] - sum_x[value] * sum_y[value]) 
-                                / (Math.Sqrt(n * sum_xsq[value] - sum_x[value] * sum_x[value]) 
-                                    * Math.Sqrt(n * sum_ysq[value] - sum_y[value] * sum_y[value]));
-
-                            avg_d_avg[value] += d_avg[value];
-                            avg_d_max[value] += d_max[value];
-                            avg_rmsd[value] += rmsd[value];
-                            avg_pearson[value] += pearson[value];
-                        }
-
-                        file.WriteLine($"NSC_{firstSet.ElementAt(i).NSC}");
-                        file.WriteLine($"Largest absolute difference: {d_max["set"]}");
-                        file.WriteLine($"Average absolute difference: {d_avg["set"]}");
-                        file.WriteLine($"Root-mean-square deviation: {rmsd["set"]}");
-                        file.WriteLine($"Pearson correlation coefficient: {pearson["set"]}");
-                        file.WriteLine("$$$$");
                     }
 
-                    string avgStatsFilePath = Path.Combine(Path.GetDirectoryName(outputFilePath), $"{Path.GetFileNameWithoutExtension(outputFilePath)}AvgStats.txt");
-                    using (StreamWriter avgStatsFile = new StreamWriter(avgStatsFilePath))
-                    {
-                        avgStatsFile.WriteLine("Average values for the entire set of molecules:");
-                        avgStatsFile.WriteLine($"Largest absolute difference: {avg_d_max["set"] / (double)firstSet.Count}");
-                        avgStatsFile.WriteLine($"Average absolute difference: {avg_d_avg["set"] / (double)firstSet.Count}");
-                        avgStatsFile.WriteLine($"Root-mean-square deviation: {avg_rmsd["set"] / (double)firstSet.Count}");
-                        avgStatsFile.WriteLine($"Pearson correlation coefficient: {avg_pearson["set"] / (double)firstSet.Count}");
-                    }
-
-                    List<Dictionary<string, double>> atomStats = new List<Dictionary<string, double>>() { avg_d_avg, avg_d_max, avg_rmsd, avg_pearson };
-                    GNUPlot2(firstSet, secondSet, outputFilePath, atomStats);
+                    List<string> symbols = xValues.Keys.ToList();
+                    symbols.Remove("molecule");
+                    GNUPlot(firstSet, secondSet, outputFilePath, symbols);
                 }
             }
             catch (Exception ex)
@@ -841,7 +766,7 @@ namespace bc_thesis
             }
         }
 
-        private static void GNUPlot2(List<Molecule> firstSet, List<Molecule> secondSet, string outputFilePath, List<Dictionary<string, double>> atomStats)
+        private static void GNUPlot(List<Molecule> firstSet, List<Molecule> secondSet, string outputFilePath, List<string> symbols)
         {
             Process plotProcess = new Process();
             plotProcess.StartInfo.FileName = Path.GetFullPath(Path.Combine(Environment.CurrentDirectory, @"..\..\gnuplot\bin\gnuplot.exe"));
@@ -853,7 +778,7 @@ namespace bc_thesis
             nfi.NumberDecimalSeparator = ".";
 
             string inputFilePath = Path.Combine(Path.GetDirectoryName(outputFilePath), $"{Path.GetFileNameWithoutExtension(outputFilePath)}GNUPlotInputFile.txt");
-            string graphFilePath = Path.Combine(Path.GetDirectoryName(outputFilePath), $"{Path.GetFileNameWithoutExtension(outputFilePath)}Graph.png");
+            string graphFilePath = Path.Combine(Path.GetDirectoryName(outputFilePath), $"{Path.GetFileNameWithoutExtension(outputFilePath)}Graph.png");            
 
             using (StreamWriter inputFile = new StreamWriter(inputFilePath))
                 for (int i = 0; i < firstSet.Count; i++)
@@ -861,7 +786,12 @@ namespace bc_thesis
                     {
                         string a = firstSet.ElementAt(i).Atoms.ElementAt(j).Charge.ToString(nfi);
                         string b = secondSet.ElementAt(i).Atoms.ElementAt(j).Charge.ToString(nfi);
-                        int c = GetAtomColor(firstSet.ElementAt(i).Atoms.ElementAt(j).Symbol);
+                        var atom = firstSet.ElementAt(i).Atoms.ElementAt(j);
+                        int c;
+                        if (paramBonds)
+                            c = symbols.IndexOf(atom.Symbol.Trim() + atom.HighestBondType.ToString());
+                        else
+                            c = symbols.IndexOf(atom.Symbol.Trim());
                         inputFile.WriteLine($"{a} {b} {c}");
                     }
 
@@ -872,79 +802,48 @@ namespace bc_thesis
                 gnuplotFile.WriteLine("set xlabel \"First set of atom charges\"");
                 gnuplotFile.WriteLine("set ylabel \"Second set of atom charges\"");
                 gnuplotFile.WriteLine($"set output '{graphFilePath}'");
-                gnuplotFile.WriteLine($"set palette defined(0 \"red\", 1 \"green\", 2 \"blue\", 3 \"yellow\", 4 \"purple\")");
-                gnuplotFile.WriteLine("set label \"H\" at graph 0.05,0.95 tc \"black\"");
-                gnuplotFile.WriteLine("set label \"C\" at graph 0.05,0.90 tc \"purple\"");
-                gnuplotFile.WriteLine("set label \"N\" at graph 0.05,0.85 tc \"red\"");
-                gnuplotFile.WriteLine("set label \"O\" at graph 0.05,0.80 tc \"orange\"");
-                gnuplotFile.WriteLine("set label \"S\" at graph 0.05,0.75 tc \"yellow\"");
+                gnuplotFile.WriteLine($"set palette model RGB");
+                gnuplotFile.Write("set palette defined(");
+                int i = 0;
+                foreach(var s in symbols)
+                {
+                    if(i == symbols.Count-1)
+                        gnuplotFile.WriteLine($"{i} \"{GetAtomColorName(i)}\")");
+                    else
+                        gnuplotFile.Write($"{i} \"{GetAtomColorName(i)}\", ");
+                    i++;
+                }
+                gnuplotFile.WriteLine($"set cbrange [0:{symbols.Count-1}]");
+                double pos = 1.0;
+                i = 0;
+                foreach (var s in symbols)
+                {
+                    pos -= 0.05;
+                    gnuplotFile.WriteLine($"set label \"{s}\" at graph 0.05,{pos.ToString(nfi)} tc \"{GetAtomColorName(i)}\"");
+                    i++;
+                }                
                 gnuplotFile.WriteLine("unset colorbox");
                 gnuplotFile.WriteLine($"plot '{inputFilePath}' u 1:2:3 with points palette notitle");
             }
         }
 
-        private static void GNUPlot(List<Molecule> firstSet, List<Molecule> secondSet, string outputFilePath)
+        private static string GetAtomColorName(int n)
         {
-            Process plotProcess = new Process();
-            plotProcess.StartInfo.FileName = Path.GetFullPath(Path.Combine(Environment.CurrentDirectory, @"..\..\gnuplot\bin\gnuplot.exe"));
-            plotProcess.StartInfo.RedirectStandardInput = true;
-            plotProcess.StartInfo.UseShellExecute = false;
-            plotProcess.Start();
-
-            NumberFormatInfo nfi = new NumberFormatInfo();
-            nfi.NumberDecimalSeparator = ".";
-
-            string inputFilePath = Path.Combine(Path.GetDirectoryName(outputFilePath), $"{Path.GetFileNameWithoutExtension(outputFilePath)}GNUPlotInputFile.txt");
-            string graphFilePath = Path.Combine(Path.GetDirectoryName(outputFilePath), $"{Path.GetFileNameWithoutExtension(outputFilePath)}Graph.png");
-
-            using (StreamWriter inputFile = new StreamWriter(inputFilePath))
-                for (int i = 0; i < firstSet.Count; i++)
-                    for (int j = 0; j < firstSet.ElementAt(i).NumOfAtoms; j++)
-                    {
-                        string a = firstSet.ElementAt(i).Atoms.ElementAt(j).Charge.ToString(nfi);
-                        string b = secondSet.ElementAt(i).Atoms.ElementAt(j).Charge.ToString(nfi);
-                        int c = GetAtomColor(firstSet.ElementAt(i).Atoms.ElementAt(j).Symbol);
-                        inputFile.WriteLine($"{a} {b} {c}");
-                    }                        
-
-            using (StreamWriter gnuplotFile = plotProcess.StandardInput)
+            switch (n)
             {
-                gnuplotFile.WriteLine("set terminal png");
-                gnuplotFile.WriteLine("set title \"Partial atomic charge correlation graph\"");
-                gnuplotFile.WriteLine("set xlabel \"First set of atom charges\"");
-                gnuplotFile.WriteLine("set ylabel \"Second set of atom charges\"");
-                gnuplotFile.WriteLine($"set output '{graphFilePath}'");
-                gnuplotFile.WriteLine($"set palette defined(0 \"red\", 1 \"green\", 2 \"blue\", 3 \"yellow\", 4 \"purple\")");
-                gnuplotFile.WriteLine("set label \"H\" at graph 0.05,0.95 tc \"red\"");
-                gnuplotFile.WriteLine("set label \"C\" at graph 0.05,0.90 tc \"green\"");
-                gnuplotFile.WriteLine("set label \"N\" at graph 0.05,0.85 tc \"blue\"");
-                gnuplotFile.WriteLine("set label \"O\" at graph 0.05,0.80 tc \"yellow\"");
-                gnuplotFile.WriteLine("set label \"S\" at graph 0.05,0.75 tc \"purple\"");
-                gnuplotFile.WriteLine("unset colorbox");
-                gnuplotFile.WriteLine($"plot '{inputFilePath}' u 1:2:3 with points palette notitle");
-            }
-        }
-
-        private static int GetAtomColor(string symbol)
-        {
-            switch (symbol.Trim())
-            {
-                case "H": return 0;
-                case "C": return 1;
-                case "N": return 2;
-                case "O": return 3;
-                case "S": return 4;
-                case "C1": return 5;
-                case "C2": return 6;
-                case "C3": return 7;
-                case "N1": return 8;
-                case "N2": return 9;
-                case "N3": return 10;
-                case "O1": return 11;
-                case "O2": return 12;
-                case "S1": return 13;
-                case "S2": return 14;
-                default: return 15;
+                case 0: return "black";
+                case 1: return "red";
+                case 2: return "green";
+                case 3: return "blue";
+                case 4: return "purple";
+                case 5: return "orange";
+                case 6: return "yellow";
+                case 7: return "greenyellow";
+                case 8: return "aquamarine";
+                case 9: return "cyan";
+                case 10: return "magenta";
+                case 11: return "aqua";
+                default: return "error";
             }
         }
 

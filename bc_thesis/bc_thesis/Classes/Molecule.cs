@@ -9,6 +9,7 @@ namespace thesis.Classes
     {
         public int NSC { get; set; }
         public int NumOfAtoms { get; set; }
+        public int NumOfOrbitals { get; set; }
         public int NumOfBonds { get; set; }
         public List<Atom> Atoms { get; set; }
 

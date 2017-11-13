@@ -15,9 +15,12 @@ namespace thesis.Classes
         public double Y { get; set; }
         public double Z { get; set; }
         public double Charge { get; set; }
+        public double OrbitalCharge { get; set; }
         public int HighestBondType { get; set; }
         // <type: s/p/n, charge>
-        public Dictionary<string, double> OrbitalCharges { get; set; }
+        public Dictionary<string, double> OrbitalENs { get; set; }
+        // <type: s/p/n, hardness>
+        public Dictionary<string, double> OrbitalHardnesses { get; set; }
         // <bonded atom ID, bond type>       
         public Dictionary<int, int> Bonds { get; set; }
         public string OrbitalID { get; set; }
@@ -27,8 +30,9 @@ namespace thesis.Classes
         public Atom()
         {            
             Bonds = new Dictionary<int, int>();
-            OrbitalCharges = new Dictionary<string, double>();
+            OrbitalENs = new Dictionary<string, double>();
             OrbitalBonds = new Dictionary<string, string>();
+            OrbitalHardnesses = new Dictionary<string, double>();
         }
     }
 }

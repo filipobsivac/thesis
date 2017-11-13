@@ -19,12 +19,16 @@ namespace bc_thesis
         
         static void Main(string[] args)
         {
-            // eem ..\..\TestFiles\set01.sdf ..\..\outEEM.txt ..\..\TestFiles\ElemBond.txt 
+            // eem ..\..\TestFiles\set01.sdf ..\..\outEEMb.txt ..\..\TestFiles\ElemBond.txt 
             // eem ..\..\TestFiles\set01.sdf ..\..\outEEM.txt ..\..\TestFiles\Element.txt
             // mgc ..\..\TestFiles\set01.sdf ..\..\outMGC.txt
+            // ogc ..\..\TestFiles\set01.sdf ..\..\outOGC.txt
             // mgc ..\..\TestFiles\acetonitrile.sdf ..\..\outMGC.txt
-            // stats ..\..\outEEM.txt ..\..\outMGC.txt ..\..\outSTATS.txt y
-            // stats ..\..\outMGC.txt ..\..\outEEM.txt ..\..\outSTATS.txt n
+            // ogc ..\..\TestFiles\acetonitrile.sdf ..\..\outOGC.txt
+            // stats ..\..\outEEMb.txt ..\..\outEEM.txt ..\..\outSTATS.txt y
+            // stats ..\..\outEEMb.txt ..\..\outMGC.txt ..\..\outSTATS.txt y
+            // stats ..\..\outEEMb.txt ..\..\outOGC.txt ..\..\outSTATS.txt y
+            // stats ..\..\outMGC.txt ..\..\outOGC.txt ..\..\outSTATS.txt y
             if (!CanParseArguments(args))
                 return;
             if (args[0].Equals("stats"))
@@ -79,9 +83,9 @@ namespace bc_thesis
             Console.WriteLine();
 
             var d = BuildDegreeMatrixOGC(m);
-            for (int i = 0; i < m.NumOfAtoms; i++)
+            for (int i = 0; i < m.Atoms.Count; i++)
             {
-                for (int j = 0; j < m.NumOfAtoms; j++)
+                for (int j = 0; j < m.Atoms.Count; j++)
                     Console.Write($"{d[i,j]} ");
                 Console.WriteLine();
             }
@@ -89,9 +93,9 @@ namespace bc_thesis
             Console.WriteLine();
 
             var a = BuildConnectivityMatrixOGC(m);
-            for (int i = 0; i < m.NumOfAtoms; i++)
+            for (int i = 0; i < m.Atoms.Count; i++)
             {
-                for (int j = 0; j < m.NumOfAtoms; j++)
+                for (int j = 0; j < m.Atoms.Count; j++)
                     Console.Write($"{a[i, j]} ");
                 Console.WriteLine();
             }
@@ -99,9 +103,9 @@ namespace bc_thesis
             Console.WriteLine();
 
             var id = BuildIdentityMatrix(m);
-            for (int i = 0; i < m.NumOfAtoms; i++)
+            for (int i = 0; i < m.Atoms.Count; i++)
             {
-                for (int j = 0; j < m.NumOfAtoms; j++)
+                for (int j = 0; j < m.Atoms.Count; j++)
                     Console.Write($"{id[i, j]} ");
                 Console.WriteLine();
             }
@@ -111,22 +115,58 @@ namespace bc_thesis
             var vector = BuildOGCVector(m);
             Matrix<double> s = d - a + id;
             var equalizedEN = s.Solve(vector);
-            for (int i = 0; i < m.NumOfAtoms; i++)
+            var deltaEN = equalizedEN - vector;   
+            double dividend = 0;
+            double divisor = 0;
+            int n = 0;
+            foreach (var orbital in m.Atoms)
+            {
+                var bond = orbital.OrbitalBonds.First(x => !x.Value.Equals("x")).Value;
+                var orbHardness = orbital.OrbitalHardnesses.First(x => x.Key.Equals(bond)).Value;
+                dividend += deltaEN[n] / orbHardness;
+                divisor += (deltaEN[n] * deltaEN[n]) / (Math.Pow(orbHardness, 3) * GetCovalentRadius(orbital.Symbol.Trim() + orbital.HighestBondType.ToString()));
+                n++;
+            }
+            double dm = dividend / divisor;
+            n = 0;
+            foreach (var orbital in m.Atoms)
+            {
+                var bond = orbital.OrbitalBonds.First(x => !x.Value.Equals("x")).Value;
+                var orbHardness = orbital.OrbitalHardnesses.First(x => x.Key.Equals(bond)).Value;
+                orbital.OrbitalCharge = (deltaEN[n] / orbHardness) - (((deltaEN[n] * deltaEN[n]) * dm) / (Math.Pow(orbHardness, 3) * GetCovalentRadius(orbital.Symbol.Trim() + orbital.HighestBondType.ToString())));                                
+                n++;
+            }
+
+            for (int i = 0; i < m.Atoms.Count; i++)
             {
                 var orbType = m.Atoms[i].OrbitalBonds.First(x => !x.Value.Equals("x")).Value;
+                var orbHardness = m.Atoms[i].OrbitalHardnesses.First(x => x.Key.Equals(orbType)).Value;
+                var covRad = GetCovalentRadius(m.Atoms[i].Symbol + m.Atoms[i].HighestBondType.ToString());
                 var orbString = "n";
                 if (!orbType.Equals("n"))
                 {
                     var bondedOrbID = m.Atoms[i].OrbitalBonds.FirstOrDefault(x => !x.Value.Equals("x")).Key;
                     var bondedOrbSymbol = m.Atoms.Find(x => x.OrbitalID == bondedOrbID).Symbol;
                     orbString = $"{orbType}({m.Atoms[i].Symbol}-{bondedOrbSymbol})";
-                }                
-                Console.WriteLine($"{orbString}\t{vector[i]}\t{equalizedEN[i]}");
+                }
+                Console.WriteLine($"{orbString}\t{vector[i]}\t{Math.Round(equalizedEN[i], 3)}\t{orbHardness}\t{covRad}\t{Math.Round(m.Atoms[i].OrbitalCharge, 3)}");
+            }
+            Console.WriteLine();
+            Console.WriteLine($"Dm = {dm}");
+            Console.WriteLine();
+
+            double[] arr = new double[m.NumOfAtoms];
+            foreach (var atom in m.Atoms)
+            {
+                var orbitals = m.Atoms.FindAll(o => o.ID == atom.ID);
+                arr[atom.ID - 1] = orbitals.Sum(x => x.OrbitalCharge);                
             }
 
-            Console.ReadKey();
+            for(int i = 0; i < molecules[0].Atoms.Count; i++)
+                Console.WriteLine($"{molecules[0].Atoms[i].Symbol} = {Math.Round(arr[i], 3)}");
             */
             #endregion
+            
             Console.ReadKey();
         }
 
@@ -427,7 +467,7 @@ namespace bc_thesis
 
         private static Matrix<double> BuildDegreeMatrixOGC(Molecule m)
         {
-            double[,] arr = new double[m.NumOfAtoms, m.NumOfAtoms];
+            double[,] arr = new double[m.Atoms.Count, m.Atoms.Count];
 
             int x = 0;
             foreach(var a in m.Atoms)
@@ -461,7 +501,7 @@ namespace bc_thesis
 
         private static Matrix<double> BuildConnectivityMatrixOGC(Molecule m)
         {
-            double[,] arr = new double[m.NumOfAtoms, m.NumOfAtoms];
+            double[,] arr = new double[m.Atoms.Count, m.Atoms.Count];
 
             foreach(var a in m.Atoms)
             {
@@ -480,9 +520,9 @@ namespace bc_thesis
 
         private static Matrix<double> BuildIdentityMatrix(Molecule m)
         {
-            double[,] arr = new double[m.NumOfAtoms, m.NumOfAtoms];
+            double[,] arr = new double[m.Atoms.Count, m.Atoms.Count];
 
-            for(int i = 0; i < m.NumOfAtoms; i++)
+            for(int i = 0; i < m.Atoms.Count; i++)
                 arr[i, i] = 1;
 
             return Matrix<double>.Build.DenseOfArray(arr);
@@ -500,12 +540,12 @@ namespace bc_thesis
 
         private static Vector<double> BuildOGCVector(Molecule m)
         {
-            double[] arr = new double[m.NumOfAtoms];
+            double[] arr = new double[m.Atoms.Count];
 
             foreach (var a in m.Atoms)
             {
                 var bond = a.OrbitalBonds.First(x => !x.Value.Equals("x")).Value;
-                var en = a.OrbitalCharges[bond];
+                var en = a.OrbitalENs[bond];
                 arr[a.OGCID - 1] = en;
             }
 
@@ -543,8 +583,8 @@ namespace bc_thesis
 
         private static void SolveOGC(string outputFilePath)
         {
-            try
-            {
+            /*try
+            {*/
                 using (StreamWriter file = new StreamWriter(outputFilePath))
                 {
                     foreach (Molecule molecule in molecules)
@@ -556,14 +596,82 @@ namespace bc_thesis
                         var vector = BuildOGCVector(m);
                         Matrix<double> s = d - a + i;
                         var equalizedEN = s.Solve(vector);
-                        //TODO
+                        var deltaEN = equalizedEN - vector;
+
+                        double dividend = 0;
+                        double divisor = 0;
+                        int n = 0;                        
+                        foreach(var orbital in m.Atoms)
+                        {
+                            var bond = orbital.OrbitalBonds.First(x => !x.Value.Equals("x")).Value;
+                            var orbHardness = orbital.OrbitalHardnesses.First(x => x.Key.Equals(bond)).Value;
+                            dividend += deltaEN[n] / orbHardness;
+                            divisor += (deltaEN[n] * deltaEN[n]) / (Math.Pow(orbHardness, 3) * GetCovalentRadius(orbital.Symbol.Trim() + orbital.HighestBondType.ToString()));
+                            n++;
+                        }
+                        double dm = dividend / divisor;
+
+                        n = 0;
+                        foreach (var orbital in m.Atoms)
+                        {
+                            var bond = orbital.OrbitalBonds.First(x => !x.Value.Equals("x")).Value;
+                            var orbHardness = orbital.OrbitalHardnesses.First(x => x.Key.Equals(bond)).Value;
+                            orbital.OrbitalCharge = (deltaEN[n] / orbHardness) - (((deltaEN[n] * deltaEN[n]) * dm) / (Math.Pow(orbHardness, 3) * GetCovalentRadius(orbital.Symbol.Trim() + orbital.HighestBondType.ToString())));
+                            n++;
+                        }
+                        
+                        double[] arr = new double[m.NumOfAtoms];
+                        foreach(var atom in m.Atoms)
+                        {
+                            var orbitals = m.Atoms.FindAll(o => o.ID == atom.ID);
+                            double x = 0;
+                            foreach(var val in orbitals)
+                            {
+                                x += val.OrbitalCharge;
+                                
+                            }
+                            arr[atom.ID - 1] = x;
+                            //arr[atom.ID - 1] = orbitals.Sum(x => x.OrbitalCharge);
+                        }
+                        Vector<double> results = Vector<double>.Build.Dense(arr);
+
+                        SaveResults(file, molecule, results);
+                    }
+                }/*
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+                //Console.WriteLine("Could not save results. Exception: " + ex.Message);
+            }*/
+        }
+
+        private static double GetCovalentRadius(string symbol)
+        {
+            try
+            {
+                using (StreamReader reader = File.OpenText(@"..\..\Tables\CovalentRadius.csv"))
+                {
+                    string line;
+                    bool skip = true;
+                    while ((line = reader.ReadLine()) != null)
+                    {
+                        if (skip)
+                        {
+                            skip = false;
+                            continue;
+                        }
+                        string[] items = line.Split(';');
+                        if (items[0].Equals(symbol))
+                            return double.Parse(items[1], CultureInfo.InvariantCulture);
                     }
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine("Could not save results. Exception: " + ex.Message);
+                Console.WriteLine("Could not get orbital charges. Exception: " + ex.Message);
             }
+            return 0;
         }
 
         private static void SaveResults(StreamWriter file, Molecule molecule, Vector<double> results)
@@ -575,7 +683,6 @@ namespace bc_thesis
             {
                 if (count != molecule.NumOfAtoms)
                 {
-                    molecule.Atoms[count].Charge = charge;
                     file.Write("{0,-4}", count + 1);
                     file.Write("{0,-3}", molecule.Atoms[count].Symbol);
                     file.Write("{0,9:F6}", charge);
@@ -847,7 +954,7 @@ namespace bc_thesis
             }
         }
 
-        private static void SetOrbitalCharges(Molecule molecule)
+        private static void SetOrbitalENsAndHardnesses(Molecule molecule)
         {
             int bondType = 1;
             foreach (var atom in molecule.Atoms)
@@ -855,22 +962,28 @@ namespace bc_thesis
                 switch (atom.Symbol)
                 {
                     case "H":
-                        atom.OrbitalCharges.Add("s", GetOrbitalCharge("H", "s_"));
+                        atom.OrbitalENs.Add("s", GetOrbitalEN("H", "s_"));
+                        atom.OrbitalHardnesses.Add("s", GetOrbitalHardness("H", "s_"));
                         break;
                     case "C":
                         bondType = atom.HighestBondType;
                         switch (bondType)
                         {
                             case 1:                                
-                                atom.OrbitalCharges.Add("s", GetOrbitalCharge("C", "te_ te te te"));
+                                atom.OrbitalENs.Add("s", GetOrbitalEN("C", "te_ te te te"));
+                                atom.OrbitalHardnesses.Add("s", GetOrbitalHardness("C", "te_ te te te"));
                                 break;
                             case 2:
-                                atom.OrbitalCharges.Add("s", GetOrbitalCharge("C", "tr_ tr tr pp"));
-                                atom.OrbitalCharges.Add("p", GetOrbitalCharge("C", "tr tr tr pp_"));                                
+                                atom.OrbitalENs.Add("s", GetOrbitalEN("C", "tr_ tr tr pp"));
+                                atom.OrbitalENs.Add("p", GetOrbitalEN("C", "tr tr tr pp_"));
+                                atom.OrbitalHardnesses.Add("s", GetOrbitalHardness("C", "tr_ tr tr pp"));
+                                atom.OrbitalHardnesses.Add("p", GetOrbitalHardness("C", "tr tr tr pp_"));
                                 break;
                             case 3:
-                                atom.OrbitalCharges.Add("s", GetOrbitalCharge("C", "di_ di pp pp"));
-                                atom.OrbitalCharges.Add("p", GetOrbitalCharge("C", "di di pp_ pp"));
+                                atom.OrbitalENs.Add("s", GetOrbitalEN("C", "di_ di pp pp"));
+                                atom.OrbitalENs.Add("p", GetOrbitalEN("C", "di di pp_ pp"));
+                                atom.OrbitalHardnesses.Add("s", GetOrbitalHardness("C", "di_ di pp pp"));
+                                atom.OrbitalHardnesses.Add("p", GetOrbitalHardness("C", "di di pp_ pp"));
                                 break;
                             default: break;
                         }
@@ -880,18 +993,26 @@ namespace bc_thesis
                         switch (bondType)
                         {
                             case 1:                                
-                                atom.OrbitalCharges.Add("s", GetOrbitalCharge("N", "te2 te_ te te"));
-                                atom.OrbitalCharges.Add("n", GetOrbitalCharge("N", "te2_ te te te"));
+                                atom.OrbitalENs.Add("s", GetOrbitalEN("N", "te2 te_ te te"));
+                                atom.OrbitalENs.Add("n", GetOrbitalEN("N", "te2_ te te te"));
+                                atom.OrbitalHardnesses.Add("s", GetOrbitalHardness("N", "te2 te_ te te"));
+                                atom.OrbitalHardnesses.Add("n", GetOrbitalHardness("N", "te2_ te te te"));
                                 break;
                             case 2:
-                                atom.OrbitalCharges.Add("s", GetOrbitalCharge("N", "tr2 tr_ tr pp"));
-                                atom.OrbitalCharges.Add("p", GetOrbitalCharge("N", "tr2 tr tr pp_"));                                
-                                atom.OrbitalCharges.Add("n", GetOrbitalCharge("N", "tr2_ tr tr pp"));
+                                atom.OrbitalENs.Add("s", GetOrbitalEN("N", "tr2 tr_ tr pp"));
+                                atom.OrbitalENs.Add("p", GetOrbitalEN("N", "tr2 tr tr pp_"));                                
+                                atom.OrbitalENs.Add("n", GetOrbitalEN("N", "tr2_ tr tr pp"));
+                                atom.OrbitalHardnesses.Add("s", GetOrbitalHardness("N", "tr2 tr_ tr pp"));
+                                atom.OrbitalHardnesses.Add("p", GetOrbitalHardness("N", "tr2 tr tr pp_"));
+                                atom.OrbitalHardnesses.Add("n", GetOrbitalHardness("N", "tr2_ tr tr pp"));
                                 break;
                             case 3:
-                                atom.OrbitalCharges.Add("s", GetOrbitalCharge("N", "di2 di_ pp pp"));
-                                atom.OrbitalCharges.Add("p", GetOrbitalCharge("N", "di2 di pp_ pp"));
-                                atom.OrbitalCharges.Add("n", GetOrbitalCharge("N", "di2_ di pp pp"));
+                                atom.OrbitalENs.Add("s", GetOrbitalEN("N", "di2 di_ pp pp"));
+                                atom.OrbitalENs.Add("p", GetOrbitalEN("N", "di2 di pp_ pp"));
+                                atom.OrbitalENs.Add("n", GetOrbitalEN("N", "di2_ di pp pp"));
+                                atom.OrbitalHardnesses.Add("s", GetOrbitalHardness("N", "di2 di_ pp pp"));
+                                atom.OrbitalHardnesses.Add("p", GetOrbitalHardness("N", "di2 di pp_ pp"));
+                                atom.OrbitalHardnesses.Add("n", GetOrbitalHardness("N", "di2_ di pp pp"));
                                 break;
                             default: break;
                         }
@@ -901,13 +1022,18 @@ namespace bc_thesis
                         switch (bondType)
                         {
                             case 1:
-                                atom.OrbitalCharges.Add("s", GetOrbitalCharge("O", "te2 te2 te_ te"));
-                                atom.OrbitalCharges.Add("n", GetOrbitalCharge("O", "te2_ te2 te te"));                                
+                                atom.OrbitalENs.Add("s", GetOrbitalEN("O", "te2 te2 te_ te"));
+                                atom.OrbitalENs.Add("n", GetOrbitalEN("O", "te2_ te2 te te"));
+                                atom.OrbitalHardnesses.Add("s", GetOrbitalHardness("O", "te2 te2 te_ te"));
+                                atom.OrbitalHardnesses.Add("n", GetOrbitalHardness("O", "te2_ te2 te te"));
                                 break;
                             case 2:
-                                atom.OrbitalCharges.Add("s", GetOrbitalCharge("O", "tr2 tr2 tr_ pp"));
-                                atom.OrbitalCharges.Add("p", GetOrbitalCharge("O", "tr2 tr2 tr pp_"));
-                                atom.OrbitalCharges.Add("n", GetOrbitalCharge("O", "tr2_ tr2 tr pp"));
+                                atom.OrbitalENs.Add("s", GetOrbitalEN("O", "tr2 tr2 tr_ pp"));
+                                atom.OrbitalENs.Add("p", GetOrbitalEN("O", "tr2 tr2 tr pp_"));
+                                atom.OrbitalENs.Add("n", GetOrbitalEN("O", "tr2_ tr2 tr pp"));
+                                atom.OrbitalHardnesses.Add("s", GetOrbitalHardness("O", "tr2 tr2 tr_ pp"));
+                                atom.OrbitalHardnesses.Add("p", GetOrbitalHardness("O", "tr2 tr2 tr pp_"));
+                                atom.OrbitalHardnesses.Add("n", GetOrbitalHardness("O", "tr2_ tr2 tr pp"));
                                 break;
                             default: break;
                         }
@@ -917,13 +1043,18 @@ namespace bc_thesis
                         switch (bondType)
                         {
                             case 1:
-                                atom.OrbitalCharges.Add("s", GetOrbitalCharge("S", "te2 te2 te_ te"));
-                                atom.OrbitalCharges.Add("n", GetOrbitalCharge("S", "te2_ te2 te te"));                                
+                                atom.OrbitalENs.Add("s", GetOrbitalEN("S", "te2 te2 te_ te"));
+                                atom.OrbitalENs.Add("n", GetOrbitalEN("S", "te2_ te2 te te"));
+                                atom.OrbitalHardnesses.Add("s", GetOrbitalHardness("S", "te2 te2 te_ te"));
+                                atom.OrbitalHardnesses.Add("n", GetOrbitalHardness("S", "te2_ te2 te te"));
                                 break;
                             case 2:
-                                atom.OrbitalCharges.Add("s", GetOrbitalCharge("S", "tr2 tr2 tr_ pp"));
-                                atom.OrbitalCharges.Add("p", GetOrbitalCharge("S", "tr2 tr2 tr pp_"));
-                                atom.OrbitalCharges.Add("n", GetOrbitalCharge("S", "tr2_ tr2 tr pp"));
+                                atom.OrbitalENs.Add("s", GetOrbitalEN("S", "tr2 tr2 tr_ pp"));
+                                atom.OrbitalENs.Add("p", GetOrbitalEN("S", "tr2 tr2 tr pp_"));
+                                atom.OrbitalENs.Add("n", GetOrbitalEN("S", "tr2_ tr2 tr pp"));
+                                atom.OrbitalHardnesses.Add("s", GetOrbitalHardness("S", "tr2 tr2 tr_ pp"));
+                                atom.OrbitalHardnesses.Add("p", GetOrbitalHardness("S", "tr2 tr2 tr pp_"));
+                                atom.OrbitalHardnesses.Add("n", GetOrbitalHardness("S", "tr2_ tr2 tr pp"));
                                 break;
                             default: break;
                         }
@@ -933,7 +1064,7 @@ namespace bc_thesis
             }
         }
 
-        private static double GetOrbitalCharge(string symbol, string state)
+        private static double GetOrbitalEN(string symbol, string state)
         {
             try
             {
@@ -961,6 +1092,34 @@ namespace bc_thesis
             return 0;
         }
 
+        private static double GetOrbitalHardness(string symbol, string state)
+        {
+            try
+            {
+                using (StreamReader reader = File.OpenText(@"..\..\Tables\OrbitalHardnessAndEN.csv"))
+                {
+                    string line;
+                    bool skip = true;
+                    while ((line = reader.ReadLine()) != null)
+                    {
+                        if (skip)
+                        {
+                            skip = false;
+                            continue;
+                        }
+                        string[] items = line.Split(';');
+                        if (items[0].Equals(symbol) && items[1].Equals(state))
+                            return double.Parse(items[3], CultureInfo.InvariantCulture);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Could not get orbital hardnesses. Exception: " + ex.Message);
+            }
+            return 0;
+        }
+
         private static Atom GetFreeOrbital(Molecule m, int id)
         {
             return m.Atoms.Find( a => (a.ID == id) && !a.OrbitalBonds.Any( b => !b.Value.Equals("x") ) );
@@ -982,10 +1141,10 @@ namespace bc_thesis
         private static Molecule BuildOGCMolecule(Molecule m)
         {
             MakeBondsNonOriented(m);
-            SetOrbitalCharges(m);
+            SetOrbitalENsAndHardnesses(m);
             Molecule ogcMolecule = new Molecule();            
             ogcMolecule.NSC = m.NSC;
-            ogcMolecule.NumOfAtoms = 0;
+            ogcMolecule.NumOfAtoms = m.NumOfAtoms;
             ogcMolecule.NumOfBonds = m.NumOfBonds;
 
             int x = 1;
@@ -1003,11 +1162,11 @@ namespace bc_thesis
                     atom.ID = a.ID;
                     atom.Symbol = a.Symbol;
                     atom.Bonds = a.Bonds;
-                    atom.OrbitalCharges = a.OrbitalCharges;
+                    atom.OrbitalENs = a.OrbitalENs;
+                    atom.OrbitalHardnesses = a.OrbitalHardnesses;
                     atom.OrbitalID = $"{atom.ID}x{i}";
                     atom.HighestBondType = a.HighestBondType;
                     ogcMolecule.Atoms.Add(atom);
-                    ogcMolecule.NumOfAtoms++;
                     x++;
                 }                
             }
@@ -1021,7 +1180,7 @@ namespace bc_thesis
                     foreach(var orb in orbs)
                         o.OrbitalBonds.Add(orb.OrbitalID, "x");
                 }
-
+                
                 if (a.Symbol.Trim().Equals("N"))
                 {
                     var firstOrbital = GetFreeOrbital(ogcMolecule, a.ID);

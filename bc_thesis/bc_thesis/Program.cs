@@ -1,4 +1,5 @@
-﻿using MathNet.Numerics.LinearAlgebra;
+﻿using bc_thesis.Classes;
+using MathNet.Numerics.LinearAlgebra;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -20,7 +21,9 @@ namespace bc_thesis
         static void Main(string[] args)
         {
             // eem ..\..\TestFiles\set01.sdf ..\..\outEEMb.txt ..\..\TestFiles\ElemBond.txt 
+            // eem ..\..\TestFiles\DTP_large.sdf ..\..\outEEMb.txt ..\..\TestFiles\ElemBond.txt 
             // eem ..\..\TestFiles\set01.sdf ..\..\outEEM.txt ..\..\TestFiles\Element.txt
+            // eem ..\..\TestFiles\DTP_large.sdf ..\..\outEEM.txt ..\..\TestFiles\Element.txt 
             // mgc ..\..\TestFiles\set01.sdf ..\..\outMGC.txt
             // ogc ..\..\TestFiles\set01.sdf ..\..\outOGC.txt
             // mgc ..\..\TestFiles\acetonitrile.sdf ..\..\outMGC.txt
@@ -292,7 +295,7 @@ namespace bc_thesis
                         {
                             Atom atom = new Atom();                            
                             atom.ID = lineNum - 4;
-                            atom.Symbol = line.Substring(31, 3).Trim(' ');
+                            atom.Symbol = line.Substring(31, 3).Trim();
                             atom.X = double.Parse(line.Substring(0, 10), CultureInfo.InvariantCulture);
                             atom.Y = double.Parse(line.Substring(10, 10), CultureInfo.InvariantCulture);
                             atom.Z = double.Parse(line.Substring(20, 10), CultureInfo.InvariantCulture);
@@ -346,7 +349,12 @@ namespace bc_thesis
                     {
                         string[] items = line.Split(';');
                         if (items[0].Equals(atom.Symbol))
+                        {
+                            if (items[1].Equals("no data"))
+                                throw new UnsupportedElementException($"Element {atom.Symbol} does not have an electronegativity value.");
                             return double.Parse(items[1], CultureInfo.InvariantCulture);
+                        }
+                            
                     }
                 }
             }
@@ -393,9 +401,11 @@ namespace bc_thesis
                         int bondType = 0;
                         if (paramBonds)
                             bondType = a.HighestBondType;
-                        var pars = elemParams.First(x =>
+                        var pars = elemParams.FirstOrDefault(x =>
                             x.ElementName.Equals(a.Symbol) &&
                             x.BondType == bondType);
+                        if (pars == null)
+                            throw new UnsupportedElementException($"No parameters found for {a.Symbol}.");
                         arr[i, j] = pars.B;
                     }                    
                     else
@@ -419,9 +429,11 @@ namespace bc_thesis
                 int bondType = 0;
                 if (paramBonds)
                     bondType = a.HighestBondType;
-                var pars = elemParams.First(x =>
+                var pars = elemParams.FirstOrDefault(x =>
                     x.ElementName.Equals(a.Symbol) &&
                     x.BondType == bondType);
+                if (pars == null)
+                    throw new UnsupportedElementException($"No parameters found for {a.Symbol}.");
                 vector[count] = -pars.A;
                 count++;
             }
@@ -437,10 +449,17 @@ namespace bc_thesis
                 {
                     foreach (Molecule molecule in molecules)
                     {
-                        var matrix = BuildEEMMatrix(molecule);
-                        var vector = BuildEEMVector(molecule);
-                        var results = matrix.Solve(vector);
-                        SaveResults(file, molecule, results);
+                        try
+                        {
+                            var matrix = BuildEEMMatrix(molecule);
+                            var vector = BuildEEMVector(molecule);
+                            var results = matrix.Solve(vector);
+                            SaveResults(file, molecule, results);
+                        }
+                        catch (UnsupportedElementException ex)
+                        {
+                            SaveIncorrectResults(file, molecule);
+                        }
                     }
                 }
             }catch(Exception ex)
@@ -560,6 +579,8 @@ namespace bc_thesis
                 {
                     foreach (Molecule molecule in molecules)
                     {
+                        try
+                        {
                         var a = BuildConnectivityMatrix(molecule);
                         var d = BuildDegreeMatrix(molecule);
                         var i = BuildIdentityMatrix(molecule);
@@ -573,6 +594,11 @@ namespace bc_thesis
                         var results = (x - vector) * (1.0 / avgEN);
 
                         SaveResults(file, molecule, results);
+                        }
+                        catch (UnsupportedElementException ex)
+                        {
+                            SaveIncorrectResults(file, molecule);
+                        }
                     }
                 }
             }catch(Exception ex)
@@ -583,67 +609,69 @@ namespace bc_thesis
 
         private static void SolveOGC(string outputFilePath)
         {
-            /*try
-            {*/
+            try
+            {
                 using (StreamWriter file = new StreamWriter(outputFilePath))
                 {
                     foreach (Molecule molecule in molecules)
                     {
-                        var m = BuildOGCMolecule(molecule);
-                        var a = BuildConnectivityMatrixOGC(m);
-                        var d = BuildDegreeMatrixOGC(m);
-                        var i = BuildIdentityMatrix(m);
-                        var vector = BuildOGCVector(m);
-                        Matrix<double> s = d - a + i;
-                        var equalizedEN = s.Solve(vector);
-                        var deltaEN = equalizedEN - vector;
+                        try
+                        {
+                            var m = BuildOGCMolecule(molecule);
+                            var a = BuildConnectivityMatrixOGC(m);
+                            var d = BuildDegreeMatrixOGC(m);
+                            var i = BuildIdentityMatrix(m);
+                            var vector = BuildOGCVector(m);
+                            Matrix<double> s = d - a + i;
+                            var equalizedEN = s.Solve(vector);
+                            var deltaEN = equalizedEN - vector;
 
-                        double dividend = 0;
-                        double divisor = 0;
-                        int n = 0;                        
-                        foreach(var orbital in m.Atoms)
-                        {
-                            var bond = orbital.OrbitalBonds.First(x => !x.Value.Equals("x")).Value;
-                            var orbHardness = orbital.OrbitalHardnesses.First(x => x.Key.Equals(bond)).Value;
-                            dividend += deltaEN[n] / orbHardness;
-                            divisor += (deltaEN[n] * deltaEN[n]) / (Math.Pow(orbHardness, 3) * GetCovalentRadius(orbital.Symbol.Trim() + orbital.HighestBondType.ToString()));
-                            n++;
-                        }
-                        double dm = dividend / divisor;
-
-                        n = 0;
-                        foreach (var orbital in m.Atoms)
-                        {
-                            var bond = orbital.OrbitalBonds.First(x => !x.Value.Equals("x")).Value;
-                            var orbHardness = orbital.OrbitalHardnesses.First(x => x.Key.Equals(bond)).Value;
-                            orbital.OrbitalCharge = (deltaEN[n] / orbHardness) - (((deltaEN[n] * deltaEN[n]) * dm) / (Math.Pow(orbHardness, 3) * GetCovalentRadius(orbital.Symbol.Trim() + orbital.HighestBondType.ToString())));
-                            n++;
-                        }
-                        
-                        double[] arr = new double[m.NumOfAtoms];
-                        foreach(var atom in m.Atoms)
-                        {
-                            var orbitals = m.Atoms.FindAll(o => o.ID == atom.ID);
-                            double x = 0;
-                            foreach(var val in orbitals)
+                            double dividend = 0;
+                            double divisor = 0;
+                            int n = 0;
+                            foreach (var orbital in m.Atoms)
                             {
-                                x += val.OrbitalCharge;
-                                
+                                var bond = orbital.OrbitalBonds.First(x => !x.Value.Equals("x")).Value;
+                                var orbHardness = orbital.OrbitalHardnesses.First(x => x.Key.Equals(bond)).Value;
+                                dividend += deltaEN[n] / orbHardness;
+                                divisor += (deltaEN[n] * deltaEN[n]) / (Math.Pow(orbHardness, 3) * GetCovalentRadius(orbital.Symbol.Trim() + orbital.HighestBondType.ToString()));
+                                n++;
                             }
-                            arr[atom.ID - 1] = x;
-                            //arr[atom.ID - 1] = orbitals.Sum(x => x.OrbitalCharge);
-                        }
-                        Vector<double> results = Vector<double>.Build.Dense(arr);
+                            double dm = dividend / divisor;
 
-                        SaveResults(file, molecule, results);
+                            n = 0;
+                            foreach (var orbital in m.Atoms)
+                            {
+                                var bond = orbital.OrbitalBonds.First(x => !x.Value.Equals("x")).Value;
+                                var orbHardness = orbital.OrbitalHardnesses.First(x => x.Key.Equals(bond)).Value;
+                                orbital.OrbitalCharge = (deltaEN[n] / orbHardness) - (((deltaEN[n] * deltaEN[n]) * dm) / (Math.Pow(orbHardness, 3) * GetCovalentRadius(orbital.Symbol.Trim() + orbital.HighestBondType.ToString())));
+                                n++;
+                            }
+
+                            double[] arr = new double[m.NumOfAtoms];
+                            foreach (var atom in m.Atoms)
+                            {
+                                var orbitals = m.Atoms.FindAll(o => o.ID == atom.ID);
+                                double x = 0;
+                                foreach (var val in orbitals)
+                                    x += val.OrbitalCharge;
+                                arr[atom.ID - 1] = x;                            
+                            }
+                            Vector<double> results = Vector<double>.Build.Dense(arr);
+
+                            SaveResults(file, molecule, results);
+                        }catch(UnsupportedElementException ex)
+                        {
+                            SaveIncorrectResults(file, molecule);
+                        }
                     }
-                }/*
+                }
             }
             catch (Exception ex)
             {
                 Console.WriteLine(ex);
                 //Console.WriteLine("Could not save results. Exception: " + ex.Message);
-            }*/
+            }
         }
 
         private static double GetCovalentRadius(string symbol)
@@ -671,7 +699,7 @@ namespace bc_thesis
             {
                 Console.WriteLine("Could not get orbital charges. Exception: " + ex.Message);
             }
-            return 0;
+            throw new UnsupportedElementException($"Could not find covalent radius values for {symbol}.");
         }
 
         private static void SaveResults(StreamWriter file, Molecule molecule, Vector<double> results)
@@ -693,6 +721,14 @@ namespace bc_thesis
             file.WriteLine("$$$$");
         }
 
+        private static void SaveIncorrectResults(StreamWriter file, Molecule molecule)
+        {
+            file.WriteLine($"NSC_{molecule.NSC}");
+            file.WriteLine("X");
+            file.WriteLine("Molecule contains unsupported elements, cannot compute charges.");
+            file.WriteLine("$$$$");
+        }
+
         private static List<Molecule> LoadMoleculesFromOutputFile(string filePath)
         {
             List<Molecule> set = new List<Molecule>();
@@ -706,7 +742,9 @@ namespace bc_thesis
                     Molecule molecule = new Molecule();
                     while ((line = reader.ReadLine()) != null)
                     {
-                        if (lineNum == 1)
+                        if (lineNum < 1)
+                            lineNum++;
+                        else if (lineNum == 1)
                         {
                             molecule = new Molecule();
                             int nsc = int.Parse(line.Substring(4));
@@ -715,8 +753,13 @@ namespace bc_thesis
                         }
                         else if (lineNum == 2)
                         {
-                            molecule.NumOfAtoms = int.Parse(line);
-                            lineNum++;
+                            if (line.Equals("X"))
+                                lineNum = -1;
+                            else
+                            {
+                                molecule.NumOfAtoms = int.Parse(line);
+                                lineNum++;
+                            }                            
                         }
                         else if (lineNum <= molecule.NumOfAtoms + 2)
                         {
@@ -748,8 +791,13 @@ namespace bc_thesis
             try
             {
                 List<Molecule> firstSet = LoadMoleculesFromOutputFile(firstFilePath);
-                List<Molecule> secondSet = LoadMoleculesFromOutputFile(secondFilePath);                
-
+                List<Molecule> secondSet = LoadMoleculesFromOutputFile(secondFilePath);
+                                
+                //TODO - should this be here?
+                //make sure sets contain same molecules in case of different numbers of molecules due to i.e. computing EEM charges with bonds and without (with bonds there are usually less results)
+                new List<Molecule>(firstSet).ForEach(m => { if (secondSet.Find(x => x.NSC == m.NSC) == null) { firstSet.Remove(m); } });
+                new List<Molecule>(secondSet).ForEach( m => { if (firstSet.Find(x => x.NSC == m.NSC) == null) { secondSet.Remove(m); } } );
+                
                 using (StreamWriter file = new StreamWriter(outputFilePath))
                 {
                     double avg_d_avg = 0;
@@ -869,6 +917,7 @@ namespace bc_thesis
             }
             catch (Exception ex)
             {
+                Console.WriteLine(ex);
                 Console.WriteLine("Could not save results. Exception: " + ex.Message);
             }
         }
@@ -1059,7 +1108,7 @@ namespace bc_thesis
                             default: break;
                         }
                         break;
-                    default: break;
+                    default: throw new UnsupportedElementException($"Cannot set Orbital EN or hardness for {atom.Symbol + GetHighestBondType(molecule, atom).ToString()}.");
                 }
             }
         }
@@ -1089,7 +1138,7 @@ namespace bc_thesis
             {
                 Console.WriteLine("Could not get orbital charges. Exception: " + ex.Message);
             }
-            return 0;
+            throw new UnsupportedElementException($"Could not find orbital electronegativity for {symbol}.");
         }
 
         private static double GetOrbitalHardness(string symbol, string state)
@@ -1117,7 +1166,7 @@ namespace bc_thesis
             {
                 Console.WriteLine("Could not get orbital hardnesses. Exception: " + ex.Message);
             }
-            return 0;
+            throw new UnsupportedElementException($"Could not find orbital hardness for {symbol}.");
         }
 
         private static Atom GetFreeOrbital(Molecule m, int id)

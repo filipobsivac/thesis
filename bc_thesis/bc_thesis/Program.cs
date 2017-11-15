@@ -1187,7 +1187,7 @@ namespace bc_thesis
                     firstOrbital.OrbitalBonds.Add(firstOrbital.ID.ToString(), "n");
                 }
 
-                if (a.Symbol.Trim().Equals("O"))
+                if (a.Symbol.Trim().Equals("O") || a.Symbol.Trim().Equals("S"))
                 {
                     for(int i = 0; i < 2; i++)
                     {
@@ -1198,38 +1198,38 @@ namespace bc_thesis
 
                 foreach (var b in a.Bonds)
                 {
-                    var firstOrbital = GetFreeOrbital(ogcMolecule, b.Key);
-                    if(firstOrbital == null)
+                    var freeOrbital = GetFreeOrbital(ogcMolecule, b.Key);
+                    if(freeOrbital == null)
                         continue;
                     if(b.Value == 1)
                     {
                         var sOrbital = GetFreeOrbital(ogcMolecule, a.ID);
-                        firstOrbital.OrbitalBonds.Add(sOrbital.OrbitalID, "s");
-                        sOrbital.OrbitalBonds.Add(firstOrbital.OrbitalID, "s");
+                        freeOrbital.OrbitalBonds.Add(sOrbital.OrbitalID, "s");
+                        sOrbital.OrbitalBonds.Add(freeOrbital.OrbitalID, "s");
                     }
                     if(b.Value == 2)
                     {
                         var pOrbital = GetFreeOrbital(ogcMolecule, a.ID);
-                        firstOrbital.OrbitalBonds.Add(pOrbital.OrbitalID, "p");
-                        pOrbital.OrbitalBonds.Add(firstOrbital.OrbitalID, "p");
-                        firstOrbital = GetFreeOrbital(ogcMolecule, b.Key);
+                        freeOrbital.OrbitalBonds.Add(pOrbital.OrbitalID, "p");
+                        pOrbital.OrbitalBonds.Add(freeOrbital.OrbitalID, "p");
+                        freeOrbital = GetFreeOrbital(ogcMolecule, b.Key);
                         var sOrbital = GetFreeOrbital(ogcMolecule, a.ID);
-                        firstOrbital.OrbitalBonds.Add(sOrbital.OrbitalID, "s");
-                        sOrbital.OrbitalBonds.Add(firstOrbital.OrbitalID, "s");
+                        freeOrbital.OrbitalBonds.Add(sOrbital.OrbitalID, "s");
+                        sOrbital.OrbitalBonds.Add(freeOrbital.OrbitalID, "s");
                     }
                     if(b.Value == 3)
                     {
                         var pOrbital = GetFreeOrbital(ogcMolecule, a.ID);
-                        firstOrbital.OrbitalBonds.Add(pOrbital.OrbitalID, "p");
-                        pOrbital.OrbitalBonds.Add(firstOrbital.OrbitalID, "p");
-                        firstOrbital = GetFreeOrbital(ogcMolecule, b.Key);
+                        freeOrbital.OrbitalBonds.Add(pOrbital.OrbitalID, "p");
+                        pOrbital.OrbitalBonds.Add(freeOrbital.OrbitalID, "p");
+                        freeOrbital = GetFreeOrbital(ogcMolecule, b.Key);
                         var sOrbital = GetFreeOrbital(ogcMolecule, a.ID);
-                        firstOrbital.OrbitalBonds.Add(sOrbital.OrbitalID, "s");
-                        sOrbital.OrbitalBonds.Add(firstOrbital.OrbitalID, "s");
-                        firstOrbital = GetFreeOrbital(ogcMolecule, b.Key);
+                        freeOrbital.OrbitalBonds.Add(sOrbital.OrbitalID, "s");
+                        sOrbital.OrbitalBonds.Add(freeOrbital.OrbitalID, "s");
+                        freeOrbital = GetFreeOrbital(ogcMolecule, b.Key);
                         var p2Orbital = GetFreeOrbital(ogcMolecule, a.ID);
-                        firstOrbital.OrbitalBonds.Add(p2Orbital.OrbitalID, "p");
-                        p2Orbital.OrbitalBonds.Add(firstOrbital.OrbitalID, "p");
+                        freeOrbital.OrbitalBonds.Add(p2Orbital.OrbitalID, "p");
+                        p2Orbital.OrbitalBonds.Add(freeOrbital.OrbitalID, "p");
                     }
                 }
             }

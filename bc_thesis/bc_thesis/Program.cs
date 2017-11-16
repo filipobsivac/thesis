@@ -48,7 +48,7 @@ namespace bc_thesis
             else
             {
                 string moleculesFilePath = Path.GetFullPath(Path.Combine(Environment.CurrentDirectory, args[1]));
-                LoadMolecules(moleculesFilePath);
+                LoadMoleculesV3000(moleculesFilePath);
                 string outputFilePath = Path.GetFullPath(Path.Combine(Environment.CurrentDirectory, args[2]));
                 if (args[0].Equals("eem"))
                 {
@@ -169,7 +169,7 @@ namespace bc_thesis
                 Console.WriteLine($"{molecules[0].Atoms[i].Symbol} = {Math.Round(arr[i], 3)}");
             */
             #endregion
-            
+
             Console.ReadKey();
         }
 
@@ -263,8 +263,8 @@ namespace bc_thesis
                 Console.WriteLine("Could not load parameters. Exception: " + ex.Message);
             }
         }        
-
-        private static void LoadMolecules(string fileName)
+        
+        private static void LoadMoleculesV2000(string fileName)
         {
             molecules = new List<Molecule>();
             try
@@ -280,8 +280,7 @@ namespace bc_thesis
                         if (lineNum == 1)
                         {
                             lineNum++;
-                            string[] items = line.Split('_');
-                            molecule.NSC = int.Parse(items[1]);
+                            molecule.Code = line;
                         }
                         else if (lineNum <= 3)
                             lineNum++;
@@ -325,6 +324,91 @@ namespace bc_thesis
             }
             catch (Exception ex)
             {
+                Console.WriteLine("Could not load molecules. Exception: " + ex.Message);
+            }
+        }
+
+        private static void LoadMoleculesV3000(string fileName)
+        {
+            molecules = new List<Molecule>();
+            try
+            {
+                using (StreamReader reader = File.OpenText(fileName))
+                {
+                    string line;
+                    string code = "START";
+                    Molecule molecule = new Molecule();
+
+                    while ((line = reader.ReadLine()) != null)
+                    {                    
+                        if (code.Equals("PARSE"))
+                        {
+                            if (line.Contains("COUNTS"))
+                                code = "COUNTS";
+                            if (line.Contains("BEGIN ATOM"))
+                            {
+                                code = "ATOMS";
+                                continue;
+                            }        
+                            if(line.Contains("BEGIN BOND"))
+                            {
+                                code = "BONDS";
+                                continue;
+                            }
+                            if(line.Contains("$$$$"))
+                            {
+                                code = "START";
+                                continue;
+                            }
+                        }
+                        if (code.Equals("START"))
+                        {
+                            molecule.Code = line;
+                            code = "PARSE";
+                        } 
+                        if(code.Equals("COUNTS"))                        
+                        {
+                            string[] items = line.Split(new char[0], StringSplitOptions.RemoveEmptyEntries);
+                            molecule.NumOfAtoms = int.Parse(items[3]);
+                            molecule.NumOfBonds = int.Parse(items[4]);
+                            code = "PARSE";
+                        }
+                        if (code.Equals("ATOMS"))
+                        {
+                            if(line.Contains("END ATOM"))
+                            {
+                                code = "PARSE";
+                                continue;
+                            }
+                            string[] items = line.Split(new char[0], StringSplitOptions.RemoveEmptyEntries);
+                            Atom atom = new Atom();
+                            atom.ID = int.Parse(items[2]);
+                            atom.Symbol = items[3].Trim();
+                            atom.X = double.Parse(items[4], CultureInfo.InvariantCulture);
+                            atom.Y = double.Parse(items[5], CultureInfo.InvariantCulture);
+                            atom.Z = double.Parse(items[6], CultureInfo.InvariantCulture);
+                            molecule.Atoms.Add(atom);
+                        }
+                        if (code.Equals("BONDS"))
+                        {
+                            if(line.Contains("END BOND"))
+                            {
+                                foreach (var atom in molecule.Atoms)
+                                    atom.HighestBondType = GetHighestBondType(molecule, atom);
+                                molecules.Add(molecule);
+                                molecule = new Molecule();
+                                code = "PARSE";
+                                continue;
+                            }                                
+                            string[] items = line.Split(new char[0], StringSplitOptions.RemoveEmptyEntries);
+                            var firstAtom = molecule.Atoms.Find(a => a.ID == int.Parse(items[4]));
+                            firstAtom.Bonds.Add(int.Parse(items[5]), int.Parse(items[3]));
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {                          
                 Console.WriteLine("Could not load molecules. Exception: " + ex.Message);
             }
         }
@@ -704,7 +788,7 @@ namespace bc_thesis
 
         private static void SaveResults(StreamWriter file, Molecule molecule, Vector<double> results)
         {
-            file.WriteLine($"NSC_{molecule.NSC}");
+            file.WriteLine($"{molecule.Code}");
             file.WriteLine(molecule.NumOfAtoms);
             int count = 0;
             foreach (double charge in results)
@@ -723,7 +807,7 @@ namespace bc_thesis
 
         private static void SaveIncorrectResults(StreamWriter file, Molecule molecule)
         {
-            file.WriteLine($"NSC_{molecule.NSC}");
+            file.WriteLine($"{molecule.Code}");
             file.WriteLine("X");
             file.WriteLine("Molecule contains unsupported elements, cannot compute charges.");
             file.WriteLine("$$$$");
@@ -746,9 +830,8 @@ namespace bc_thesis
                             lineNum++;
                         else if (lineNum == 1)
                         {
-                            molecule = new Molecule();
-                            int nsc = int.Parse(line.Substring(4));
-                            molecule.NSC = nsc;
+                            molecule = new Molecule();                            
+                            molecule.Code = line;
                             lineNum++;
                         }
                         else if (lineNum == 2)
@@ -795,8 +878,8 @@ namespace bc_thesis
                                 
                 //TODO - should this be here?
                 //make sure sets contain same molecules in case of different numbers of molecules due to i.e. computing EEM charges with bonds and without (with bonds there are usually less results)
-                new List<Molecule>(firstSet).ForEach(m => { if (secondSet.Find(x => x.NSC == m.NSC) == null) { firstSet.Remove(m); } });
-                new List<Molecule>(secondSet).ForEach( m => { if (firstSet.Find(x => x.NSC == m.NSC) == null) { secondSet.Remove(m); } } );
+                new List<Molecule>(firstSet).ForEach(m => { if (secondSet.Find(x => x.Code == m.Code) == null) { firstSet.Remove(m); } });
+                new List<Molecule>(secondSet).ForEach( m => { if (firstSet.Find(x => x.Code == m.Code) == null) { secondSet.Remove(m); } } );
                 
                 using (StreamWriter file = new StreamWriter(outputFilePath))
                 {
@@ -855,7 +938,7 @@ namespace bc_thesis
                         avg_rmsd += rmsd;
                         avg_pearson += pearson;
 
-                        file.WriteLine($"NSC_{firstSet.ElementAt(i).NSC}");
+                        file.WriteLine(firstSet.ElementAt(i).Code);
                         file.WriteLine($"Largest absolute difference: {d_max}");
                         file.WriteLine($"Average absolute difference: {d_avg}");
                         file.WriteLine($"Root-mean-square deviation: {rmsd}");
@@ -916,8 +999,7 @@ namespace bc_thesis
                 }
             }
             catch (Exception ex)
-            {
-                Console.WriteLine(ex);
+            {                
                 Console.WriteLine("Could not save results. Exception: " + ex.Message);
             }
         }
@@ -1108,7 +1190,7 @@ namespace bc_thesis
                             default: break;
                         }
                         break;
-                    default: throw new UnsupportedElementException($"Cannot set Orbital EN or hardness for {atom.Symbol + GetHighestBondType(molecule, atom).ToString()}.");
+                    default: throw new UnsupportedElementException($"Cannot set Orbital EN or hardness for {atom.Symbol + atom.HighestBondType.ToString()}.");
                 }
             }
         }
@@ -1192,7 +1274,7 @@ namespace bc_thesis
             MakeBondsNonOriented(m);
             SetOrbitalENsAndHardnesses(m);
             Molecule ogcMolecule = new Molecule();            
-            ogcMolecule.NSC = m.NSC;
+            ogcMolecule.Code = m.Code;
             ogcMolecule.NumOfAtoms = m.NumOfAtoms;
             ogcMolecule.NumOfBonds = m.NumOfBonds;
 

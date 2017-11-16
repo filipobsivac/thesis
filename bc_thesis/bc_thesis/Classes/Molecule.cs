@@ -7,7 +7,7 @@ namespace thesis.Classes
 {
     public class Molecule
     {
-        public int NSC { get; set; }
+        public string Code { get; set; }
         public int NumOfAtoms { get; set; }
         public int NumOfOrbitals { get; set; }
         public int NumOfBonds { get; set; }

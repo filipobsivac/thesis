@@ -6,17 +6,17 @@ using System.Threading.Tasks;
 
 namespace bc_thesis.Classes
 {
-    class UnsupportedElementException : Exception
+    class UnsupportedAtomException : Exception
     {
-        public UnsupportedElementException()
+        public UnsupportedAtomException()
         {
         }
 
-        public UnsupportedElementException(string message) : base(message)
+        public UnsupportedAtomException(string message) : base(message)
         {
         }
 
-        public UnsupportedElementException(string message, Exception inner) : base(message, inner)
+        public UnsupportedAtomException(string message, Exception inner) : base(message, inner)
         { 
         }
     }

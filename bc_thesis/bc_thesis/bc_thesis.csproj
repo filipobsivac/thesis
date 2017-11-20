@@ -61,22 +61,6 @@
     <None Include="Tables\ElementEN.csv" />
     <None Include="Tables\OrbitalHardnessAndEN.csv" />
   </ItemGroup>
-  <ItemGroup>
-    <Content Include="TestFiles\acetonitrile.sdf">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
-    <Content Include="TestFiles\DTP_large.sdf">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
-    <Content Include="TestFiles\ElemBond.txt" />
-    <Content Include="TestFiles\Element.txt" />
-    <Content Include="TestFiles\proteins.sdf">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
-    <Content Include="TestFiles\set01.sdf">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
-  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

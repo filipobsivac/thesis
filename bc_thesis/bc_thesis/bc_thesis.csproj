@@ -47,19 +47,19 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Classes\Atom.cs" />
-    <Compile Include="Classes\ElementParameters.cs" />
-    <Compile Include="Classes\Molecule.cs" />
-    <Compile Include="Classes\UnsupportedElementException.cs" />
+    <Compile Include="Structures\Atom.cs" />
+    <Compile Include="Structures\ElementParameters.cs" />
+    <Compile Include="Structures\Molecule.cs" />
+    <Compile Include="Structures\UnsupportedElementException.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
     <None Include="packages.config" />
-    <None Include="Tables\CovalentRadius.csv" />
-    <None Include="Tables\ElementEN.csv" />
-    <None Include="Tables\OrbitalHardnessAndEN.csv" />
+    <None Include="Data\CovalentRadius.csv" />
+    <None Include="Data\ElementEN.csv" />
+    <None Include="Data\OrbitalHardnessAndEN.csv" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

@@ -1,4 +1,4 @@
-﻿using bc_thesis.Classes;
+﻿using bc_thesis.Structures;
 using MathNet.Numerics.LinearAlgebra;
 using System;
 using System.Collections.Generic;
@@ -6,16 +6,15 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using thesis.Classes;
 
 namespace bc_thesis
 {
     class Program
     {
-        private const string ElementENTablePath = @"..\..\Tables\ElementEN.csv";
-        private const string CovalentRadiusTablePath = @"..\..\Tables\CovalentRadius.csv";
-        private const string GNUPlotExePath = @"..\..\gnuplot\bin\gnuplot.exe";
-        private const string OrbitalHardnessAndENTablePath = @"..\..\Tables\OrbitalHardnessAndEN.csv";
+        private const string ElementENTablePath = @"..\..\Data\ElementEN.csv";
+        private const string CovalentRadiusTablePath = @"..\..\Data\CovalentRadius.csv";        
+        private const string OrbitalHardnessAndENTablePath = @"..\..\Data\OrbitalHardnessAndEN.csv";
+        private static string GNUPlotExePath;
 
         private static List<ElementParameters> elemParams;
         private static List<Molecule> molecules;
@@ -30,10 +29,11 @@ namespace bc_thesis
             {
                 string firstFilePath = Path.GetFullPath(Path.Combine(Environment.CurrentDirectory, args[1]));
                 string secondFilePath = Path.GetFullPath(Path.Combine(Environment.CurrentDirectory, args[2]));
-                string outputFilePath = Path.GetFullPath(Path.Combine(Environment.CurrentDirectory, args[3]));                
-                if (args[4].Equals("y"))
+                string outputFilePath = Path.GetFullPath(Path.Combine(Environment.CurrentDirectory, args[3]));
+                GNUPlotExePath = Path.GetFullPath(args[4]);
+                if (args[5].Equals("y"))
                     paramBonds = true;
-                if (args[4].Equals("n"))
+                if (args[5].Equals("n"))
                     paramBonds = false;
                 GenerateStatistics(firstFilePath, secondFilePath, outputFilePath);
             }
@@ -65,11 +65,12 @@ namespace bc_thesis
         private static void PrintHelp()
         {
             Console.WriteLine("Arguments must be entered in the following format:");
-            Console.WriteLine("\"<method> <molecules file> <output file> <parameters file>\" or \"stats <first molecules file> <second molecules file> <output file> <EEM bonds flag>\"");
+            Console.WriteLine("\"<method> <molecules file> <output file> <parameters file>\" or \"stats <first molecules file> <second molecules file> <output file> <GNUPlot .exe file> <EEM bonds flag>\"");
             Console.WriteLine();
             Console.WriteLine("<method> - Method name. Only \"eem\", \"mgc\" or \"ogc\" supported.");
             Console.WriteLine("<molecules file> - Path and file name of the set of molecules.");
             Console.WriteLine("<output file> - Desired path and file name for output file.");
+            Console.WriteLine("<GNUPlot .exe file> - Path to GNUPlot executable file.");
             Console.WriteLine("<parameters file> - Path and file name of the parameters file. Required only for EEM.");
             Console.WriteLine("<EEM bonds flag> - \"y\" or \"n\" to specify whether statisticss should be generated for atoms according to their bond types or not. Not supported for OpenBabel output files.");
         }
@@ -87,13 +88,13 @@ namespace bc_thesis
                 PrintHelp();
                 return false;
             }      
-            else if(items[0].Equals("stats") && items.Length != 5)
+            else if(items[0].Equals("stats") && items.Length != 6)
             {
                 Console.WriteLine("Incorrect number of arguments for statistics generation.");
                 PrintHelp();
                 return false;
             }
-            else if (items[0].Equals("stats") && !(items[4].Equals("n") || items[4].Equals("y")))
+            else if (items[0].Equals("stats") && !(items[5].Equals("n") || items[5].Equals("y")))
             {
                 Console.WriteLine("Please specify whether you want to generate statistics for atom types according to their bond types with either \"y\" or \"n\"");
                 PrintHelp();
@@ -824,7 +825,7 @@ namespace bc_thesis
                 if (a.Bonds.Sum(b => b.Value) != 4)
                     return false;
                 if (a.Bonds.Count == 2)
-                    if(a.Bonds[0] == 2 && a.Bonds[1] == 2)
+                    if(a.Bonds.First().Value == 2 && a.Bonds.Last().Value == 2)
                         return false;
             }                
             if (a.Symbol.Equals("N") && a.Bonds.Sum(b => b.Value) != 3)
@@ -1020,12 +1021,23 @@ namespace bc_thesis
         {
             try
             {
-                List<Molecule> firstSet = LoadMoleculesFromOutputFile(firstFilePath);
-                List<Molecule> secondSet = LoadMoleculesFromOutputFile(secondFilePath);
-                
+                NumberFormatInfo nfi = new NumberFormatInfo();
+                nfi.NumberDecimalSeparator = ".";
+                                
+                bool origParamBonds = paramBonds;
+                List<Molecule> firstSet = LoadMoleculesFromOutputFile(firstFilePath).OrderBy(m => m.Code).ToList();
+                bool firstSetParamBonds = paramBonds;
+                List<Molecule> secondSet = LoadMoleculesFromOutputFile(secondFilePath).OrderBy(m => m.Code).ToList();
+                bool secondSetParamBonds = paramBonds;
+                //if at least one set has bond types specified, use them if they should be used
+                if (origParamBonds && (firstSetParamBonds || secondSetParamBonds))
+                    paramBonds = true;
+                else
+                    paramBonds = false;
+
                 //make sure both sets contain the same molecules in case different methods were used that do not work for the same atom types
-                new List<Molecule>(firstSet).ForEach(m => { if (secondSet.Find(x => x.Code == m.Code) == null) { firstSet.Remove(m); } });
-                new List<Molecule>(secondSet).ForEach(m => { if (firstSet.Find(x => x.Code == m.Code) == null) { secondSet.Remove(m); } });
+                new List<Molecule>(firstSet).ForEach(m => { if (secondSet.Find(x => x.Code.Equals(m.Code)) == null) { firstSet.Remove(m); } });
+                new List<Molecule>(secondSet).ForEach(m => { if (firstSet.Find(x => x.Code.Equals(m.Code)) == null) { secondSet.Remove(m); } });
 
                 if (firstSet.Count == 0 || secondSet.Count == 0)
                 {
@@ -1035,11 +1047,14 @@ namespace bc_thesis
 
                 using (StreamWriter file = new StreamWriter(outputFilePath))
                 {
+                    file.WriteLine("Molecule;Largest absolute difference;Average absolute difference;Root-mean-square deviation;Pearson correlation coefficient;Pearson squared");
+
                     //variables used to calculate average values for the entire set of molecules
                     double avg_d_avg = 0;
                     double avg_d_max = 0;
                     double avg_rmsd = 0;
                     double avg_pearson = 0;
+                    double avg_pearson_sq = 0;
 
                     //variables used to store charges for each atom type
                     Dictionary<string, List<double>> xValues = new Dictionary<string, List<double>>() { { "molecule", new List<double>() } };
@@ -1065,7 +1080,10 @@ namespace bc_thesis
                             string symbol = firstSet.ElementAt(i).Atoms.ElementAt(j).Symbol;
                             //add bond type in case it was specified to generate statistics with bond types
                             if (paramBonds)
-                                symbol += firstSet.ElementAt(i).Atoms.ElementAt(j).HighestBondType.ToString();
+                            {
+                                var set = firstSetParamBonds ? firstSet : secondSet;
+                                symbol += set.ElementAt(i).Atoms.ElementAt(j).HighestBondType.ToString();
+                            }
 
                             //add new atom type
                             if (!xValues.ContainsKey(symbol))
@@ -1094,29 +1112,26 @@ namespace bc_thesis
                         avg_d_max += d_max;
                         avg_rmsd += rmsd;
                         avg_pearson += pearson;
+                        avg_pearson_sq += pearson * pearson;
 
-                        file.WriteLine(firstSet.ElementAt(i).Code);
-                        file.WriteLine($"Largest absolute difference:     {d_max}");
-                        file.WriteLine($"Average absolute difference:     {d_avg}");
-                        file.WriteLine($"Root-mean-square deviation:      {rmsd}");
-                        file.WriteLine($"Pearson correlation coefficient: {pearson}");
-                        file.WriteLine("$$$$");
+                        file.WriteLine($"{firstSet.ElementAt(i).Code};{Math.Round(d_max, 4).ToString(nfi)};{Math.Round(d_avg, 4).ToString(nfi)};{Math.Round(rmsd, 4).ToString(nfi)};{Math.Round(pearson, 4).ToString(nfi)};{Math.Round(pearson * pearson, 4).ToString(nfi)}");
                     }
 
                     string avgStatsFilePath = Path.Combine(Path.GetDirectoryName(outputFilePath), $"{Path.GetFileNameWithoutExtension(outputFilePath)}AvgStats.txt");
                     using (StreamWriter avgStatsFile = new StreamWriter(avgStatsFilePath))
                     {
                         avgStatsFile.WriteLine("Average statistics for the entire set of molecules:");
-                        avgStatsFile.WriteLine("D_MAX   D_AVG   RMSD    PEARSON");
-                        avgStatsFile.Write("{0,-8:F4}", avg_d_max / (double)firstSet.Count);
-                        avgStatsFile.Write("{0,-8:F4}", avg_d_avg / (double)firstSet.Count);
-                        avgStatsFile.Write("{0,-8:F4}", avg_rmsd / (double)firstSet.Count);
-                        avgStatsFile.WriteLine("{0,-8:F4}", avg_pearson / (double)firstSet.Count);
+                        avgStatsFile.WriteLine("D_MAX    D_AVG    RMSD     PEARSON  PEARSON^2");
+                        avgStatsFile.Write(string.Format("{0,6:F4}", avg_d_max / (double)firstSet.Count).Replace(',', '.'));
+                        avgStatsFile.Write(string.Format("{0,9:F4}", avg_d_avg / (double)firstSet.Count).Replace(',', '.'));
+                        avgStatsFile.Write(string.Format("{0,9:F4}", avg_rmsd / (double)firstSet.Count).Replace(',', '.'));
+                        avgStatsFile.Write(string.Format("{0,9:F4}", avg_pearson / (double)firstSet.Count).Replace(',', '.'));
+                        avgStatsFile.WriteLine(string.Format("{0,9:F4}", avg_pearson_sq / (double)firstSet.Count).Replace(',', '.'));
                         avgStatsFile.WriteLine();
                         avgStatsFile.WriteLine("Statistics for individual atom types: ");
-                        avgStatsFile.WriteLine("Atom    D_MAX   D_AVG   RMSD    PEARSON");
+                        avgStatsFile.WriteLine("Atom     D_MAX    D_AVG    RMSD     PEARSON  PEARSON^2");
 
-                        //compute values for each atom type
+                        //calculate values for each atom type
                         foreach (var atomType in xValues.Keys.ToList())
                         {
                             //skip values for last molecule
@@ -1146,11 +1161,12 @@ namespace bc_thesis
                             rmsd = Math.Sqrt(sum_rmsd / (double)xValues[atomType].Count);
                             pearson = MathNet.Numerics.Statistics.Correlation.Pearson(xValues[atomType], yValues[atomType]);
 
-                            avgStatsFile.Write("{0,-8}", atomType);
-                            avgStatsFile.Write("{0,-8:F4}", d_max);
-                            avgStatsFile.Write("{0,-8:F4}", d_avg);
-                            avgStatsFile.Write("{0,-8:F4}", rmsd);
-                            avgStatsFile.Write("{0,-8:F4}", pearson);
+                            avgStatsFile.Write("{0,-6}", atomType);
+                            avgStatsFile.Write(string.Format("{0,9:F4}", d_max).Replace(',', '.'));
+                            avgStatsFile.Write(string.Format("{0,9:F4}", d_avg).Replace(',', '.'));
+                            avgStatsFile.Write(string.Format("{0,9:F4}", rmsd).Replace(',', '.'));
+                            avgStatsFile.Write(string.Format("{0,9:F4}", pearson).Replace(',', '.'));
+                            avgStatsFile.Write(string.Format("{0,9:F4}", pearson * pearson).Replace(',', '.'));
                             avgStatsFile.WriteLine();
                         }
                     }
@@ -1165,7 +1181,7 @@ namespace bc_thesis
                 Console.WriteLine("Could not save results. Exception: " + ex.Message);
             }
         }
-
+        
         private static void SaveResults(StreamWriter file, Molecule molecule, Vector<double> results)
         {
             file.WriteLine($"{molecule.Code}");
@@ -1175,16 +1191,16 @@ namespace bc_thesis
             {
                 if (count != molecule.NumOfAtoms)
                 {
-                    file.Write("{0,-5}", count + 1);
-                    file.Write("{0,-3}", molecule.Atoms[count].Symbol);
-                    file.Write("{0,9:F6}", charge);
+                    file.Write("{0,5}", count + 1);
+                    file.Write("{0,3}", molecule.Atoms[count].Symbol);
+                    file.Write(string.Format("{0,12:F6}", charge).Replace(',', '.'));
                     file.WriteLine("{0,2}", molecule.Atoms[count].HighestBondType);
                     count++;
                 }
             }
             file.WriteLine("$$$$");
         }
-
+        
         private static void SaveIncorrectResults(StreamWriter file, Molecule molecule, Exception ex)
         {
             file.WriteLine($"{molecule.Code}");
@@ -1234,10 +1250,15 @@ namespace bc_thesis
                         else if (lineNum <= molecule.NumOfAtoms + 2)
                         {
                             Atom atom = new Atom();
-                            atom.ID = int.Parse(line.Substring(0, 5));
-                            atom.Symbol = line.Substring(5, 3).Trim();
-                            atom.Charge = double.Parse(line.Substring(8, 9));
-                            atom.HighestBondType = int.Parse(line.Substring(18));
+                            string[] items = line.Split(new char[0], StringSplitOptions.RemoveEmptyEntries);
+                            atom.ID = int.Parse(items[0]);
+                            atom.Symbol = items[1].Trim();
+                            atom.Charge = double.Parse(items[2], CultureInfo.InvariantCulture);
+                            //check whether file has specified bond types in the fourth column and update paramBonds flag accordingly
+                            if (items.Length == 4)
+                                atom.HighestBondType = int.Parse(items[3]);
+                            else
+                                paramBonds = false;
                             molecule.Atoms.Add(atom);
                             lineNum++;
                         }
@@ -1333,7 +1354,7 @@ namespace bc_thesis
             nfi.NumberDecimalSeparator = ".";
 
             string inputFilePath = Path.Combine(Path.GetDirectoryName(outputFilePath), $"{Path.GetFileNameWithoutExtension(outputFilePath)}GNUPlotInputFile.txt");
-            string graphFilePath = Path.Combine(Path.GetDirectoryName(outputFilePath), $"{Path.GetFileNameWithoutExtension(outputFilePath)}Graph.png");
+            string graphFilePath = Path.Combine(Path.GetDirectoryName(outputFilePath), $"{Path.GetFileNameWithoutExtension(outputFilePath)}Graph.pdf");
 
             using (StreamWriter inputFile = new StreamWriter(inputFilePath))
                 for (int i = 0; i < firstSet.Count; i++)
@@ -1350,35 +1371,39 @@ namespace bc_thesis
 
             using (StreamWriter gnuplotFile = plotProcess.StandardInput)
             {
-                gnuplotFile.WriteLine("set terminal png");
+                gnuplotFile.WriteLine("set terminal pdf");
                 gnuplotFile.WriteLine("set title \"Partial atomic charge correlation graph\"");
                 gnuplotFile.WriteLine("set xlabel \"First set of atom charges\"");
                 gnuplotFile.WriteLine("set ylabel \"Second set of atom charges\"");
+                gnuplotFile.WriteLine("set xrange [-2:2]");
+                gnuplotFile.WriteLine("set yrange [-2:2]");
                 gnuplotFile.WriteLine($"set output '{graphFilePath}'");
                 gnuplotFile.WriteLine($"set palette model RGB");
                 gnuplotFile.Write("set palette defined(");
                 //assign colors to numbers in input file
                 int i = 0;
+                string str = "";
                 foreach (var s in symbols)
                 {
-                    if (i == symbols.Count - 1)
-                        gnuplotFile.WriteLine($"{i} \"{GetAtomColorName(i)}\")");
-                    else
-                        gnuplotFile.Write($"{i} \"{GetAtomColorName(i)}\", ");
+                    str += $"{i} \"{GetAtomColorName(i)}\", ";
                     i++;
                 }
-                gnuplotFile.WriteLine($"set cbrange [0:{symbols.Count - 1}]");
+                gnuplotFile.WriteLine(str.Substring(0, str.Length - 2) + ")");
                 //set labels for each atom type with corresponding colors
                 double pos = 1.0;
                 i = 0;
                 foreach (var s in symbols)
                 {
-                    pos -= 0.05;
-                    gnuplotFile.WriteLine($"set label \"{s}\" at graph 0.05,{pos.ToString(nfi)} tc \"{GetAtomColorName(i)}\"");
+                    pos -= 0.04;
+                    gnuplotFile.WriteLine($"set label \"{s}\" at graph 0.04,{pos.ToString(nfi)} front tc \"{GetAtomColorName(i)}\" font \"Verdana,8\"");
                     i++;
                 }
+                gnuplotFile.WriteLine("set style fill transparent solid 0.75 noborder");
+                gnuplotFile.WriteLine("set style circle radius 0.02");                
+                gnuplotFile.WriteLine("set arrow from -2,-2 to 2,2 nohead lc \"grey\"");
                 gnuplotFile.WriteLine("unset colorbox");
-                gnuplotFile.WriteLine($"plot '{inputFilePath}' u 1:2:3 with points palette notitle");
+                gnuplotFile.WriteLine("set size square");
+                gnuplotFile.WriteLine($"plot '{inputFilePath}' u 1:2:3 w circles palette notitle");                
             }
         }
 
@@ -1387,19 +1412,25 @@ namespace bc_thesis
         {
             switch (n)
             {
-                case 0: return "black";
-                case 1: return "red";
-                case 2: return "green";
-                case 3: return "blue";
-                case 4: return "purple";
-                case 5: return "orange";
-                case 6: return "yellow";
-                case 7: return "greenyellow";
-                case 8: return "aquamarine";
-                case 9: return "cyan";
-                case 10: return "magenta";
-                case 11: return "aqua";
-                default: return "error";
+                case 0: return "#000000";
+                case 1: return "#ff0000";
+                case 2: return "#008000";
+                case 3: return "#0000ff";
+                case 4: return "#800080";
+                case 5: return "#ffa500";
+                case 6: return "#ffff00";
+                case 7: return "#adff2f";
+                case 8: return "#7fffd4";
+                case 9: return "#00ffff";
+                case 10: return "#ff00ff";
+                case 11: return "#00ffff";
+                case 12: return "#008080";
+                case 13: return "#a52a2a";
+                case 14: return "#b8860b";
+                case 15: return "#87cefa";
+                case 16: return "#da70d6";
+                case 17: return "#008b8b";
+                default: throw new UnsupportedAtomException("Too many atom types to display labels for.");
             }
         }
     }

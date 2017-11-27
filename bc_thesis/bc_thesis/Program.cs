@@ -1025,9 +1025,9 @@ namespace bc_thesis
                 nfi.NumberDecimalSeparator = ".";
                                 
                 bool origParamBonds = paramBonds;
-                List<Molecule> firstSet = LoadMoleculesFromOutputFile(firstFilePath).OrderBy(m => m.Code).ToList();
+                List<Molecule> firstSet = LoadMoleculesFromOutputFile(firstFilePath);
                 bool firstSetParamBonds = paramBonds;
-                List<Molecule> secondSet = LoadMoleculesFromOutputFile(secondFilePath).OrderBy(m => m.Code).ToList();
+                List<Molecule> secondSet = LoadMoleculesFromOutputFile(secondFilePath);
                 bool secondSetParamBonds = paramBonds;
                 //if at least one set has bond types specified, use them if they should be used
                 if (origParamBonds && (firstSetParamBonds || secondSetParamBonds))
@@ -1038,6 +1038,10 @@ namespace bc_thesis
                 //make sure both sets contain the same molecules in case different methods were used that do not work for the same atom types
                 new List<Molecule>(firstSet).ForEach(m => { if (secondSet.Find(x => x.Code.Equals(m.Code)) == null) { firstSet.Remove(m); } });
                 new List<Molecule>(secondSet).ForEach(m => { if (firstSet.Find(x => x.Code.Equals(m.Code)) == null) { secondSet.Remove(m); } });
+
+                //sort lists by molecule codes in case sets have molecules in different orders
+                firstSet = firstSet.OrderBy(m => m.Code).ToList();
+                secondSet = secondSet.OrderBy(m => m.Code).ToList();
 
                 if (firstSet.Count == 0 || secondSet.Count == 0)
                 {

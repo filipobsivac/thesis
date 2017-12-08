@@ -24,7 +24,7 @@ namespace bc_thesis
         static void Main(string[] args)
         {
             if (!CanParseArguments(args))
-                return;
+                return;   
             if (args[0].Equals("stats"))
             {
                 string firstFilePath = Path.GetFullPath(Path.Combine(Environment.CurrentDirectory, args[1]));
@@ -1016,14 +1016,14 @@ namespace bc_thesis
                 Console.WriteLine("Could not save results. Exception: " + ex.Message);
             }
         }
-
+        
         private static void GenerateStatistics(string firstFilePath, string secondFilePath, string outputFilePath)
         {
             try
             {
                 NumberFormatInfo nfi = new NumberFormatInfo();
                 nfi.NumberDecimalSeparator = ".";
-                                
+
                 bool origParamBonds = paramBonds;
                 List<Molecule> firstSet = LoadMoleculesFromOutputFile(firstFilePath);
                 bool firstSetParamBonds = paramBonds;
@@ -1036,8 +1036,23 @@ namespace bc_thesis
                     paramBonds = false;
 
                 //make sure both sets contain the same molecules in case different methods were used that do not work for the same atom types
-                new List<Molecule>(firstSet).ForEach(m => { if (secondSet.Find(x => x.Code.Equals(m.Code)) == null) { firstSet.Remove(m); } });
-                new List<Molecule>(secondSet).ForEach(m => { if (firstSet.Find(x => x.Code.Equals(m.Code)) == null) { secondSet.Remove(m); } });
+                //remove duplicates as well
+                new List<Molecule>(firstSet).ForEach(
+                    m => { if (secondSet.FindAll(
+                        x => x.Code.Equals(m.Code)).Count != 1) {
+                            firstSet.RemoveAll(mol => mol.Code.Equals(m.Code));
+                            secondSet.RemoveAll(mol => mol.Code.Equals(m.Code));
+                        }
+                    }
+                );
+                new List<Molecule>(secondSet).ForEach(
+                    m => { if (firstSet.FindAll(
+                        x => x.Code.Equals(m.Code)).Count != 1) {
+                            secondSet.RemoveAll(mol => mol.Code.Equals(m.Code));
+                            firstSet.RemoveAll(mol => mol.Code.Equals(m.Code));                            
+                        }
+                    }
+                );
 
                 //sort lists by molecule codes in case sets have molecules in different orders
                 firstSet = firstSet.OrderBy(m => m.Code).ToList();
@@ -1302,7 +1317,10 @@ namespace bc_thesis
                     if (line.Contains("AUTHOR"))
                         code = "ATOMS";
                     if (line.Contains("ENDMDL"))
+                    {
+                        molecule.NumOfAtoms = molecule.Atoms.Count;
                         set.Add(molecule);
+                    }                        
                     continue;
                 }
                 if (code.Equals("ATOMS"))
@@ -1320,7 +1338,7 @@ namespace bc_thesis
                         if (!(items.Length > 2))
                             continue;
                         for (int i = 2; i < items.Length; i++)
-                            atom.Bonds.Add(int.Parse(items[i]), -1);//default value -1 because PpenBabel .pqr files do not specify bond types
+                            atom.Bonds.Add(int.Parse(items[i]), -1);//default value -1 because OpenBabel .pqr files do not specify bond types
                     }
                     else
                     {
@@ -1375,16 +1393,16 @@ namespace bc_thesis
 
             using (StreamWriter gnuplotFile = plotProcess.StandardInput)
             {
-                gnuplotFile.WriteLine("set terminal pdf");
+                gnuplotFile.WriteLine("set terminal pdf size 3.75,2.25");
                 gnuplotFile.WriteLine("set title \"Partial atomic charge correlation graph\"");
-                gnuplotFile.WriteLine("set xlabel \"First set of atom charges\"");
-                gnuplotFile.WriteLine("set ylabel \"Second set of atom charges\"");
+                gnuplotFile.WriteLine("set xlabel \"First set of partial charges\"");
+                gnuplotFile.WriteLine("set ylabel \"Second set of partial charges\"");
                 gnuplotFile.WriteLine("set xrange [-2:2]");
                 gnuplotFile.WriteLine("set yrange [-2:2]");
                 gnuplotFile.WriteLine($"set output '{graphFilePath}'");
                 gnuplotFile.WriteLine($"set palette model RGB");
                 gnuplotFile.Write("set palette defined(");
-                //assign colors to numbers in input file
+                //assign colours to numbers in input file
                 int i = 0;
                 string str = "";
                 foreach (var s in symbols)
@@ -1393,17 +1411,17 @@ namespace bc_thesis
                     i++;
                 }
                 gnuplotFile.WriteLine(str.Substring(0, str.Length - 2) + ")");
-                //set labels for each atom type with corresponding colors
+                //set labels for each atom type with corresponding colours
                 double pos = 1.0;
                 i = 0;
                 foreach (var s in symbols)
                 {
-                    pos -= 0.04;
-                    gnuplotFile.WriteLine($"set label \"{s}\" at graph 0.04,{pos.ToString(nfi)} front tc \"{GetAtomColorName(i)}\" font \"Verdana,8\"");
+                    pos -= 0.05;
+                    gnuplotFile.WriteLine($"set label \"{s}\" at graph 0.05,{pos.ToString(nfi)} front tc \"{GetAtomColorName(i)}\" font \"Verdana,8\"");
                     i++;
                 }
                 gnuplotFile.WriteLine("set style fill transparent solid 0.75 noborder");
-                gnuplotFile.WriteLine("set style circle radius 0.02");                
+                gnuplotFile.WriteLine("set style circle radius 0.015");                
                 gnuplotFile.WriteLine("set arrow from -2,-2 to 2,2 nohead lc \"grey\"");
                 gnuplotFile.WriteLine("unset colorbox");
                 gnuplotFile.WriteLine("set size square");

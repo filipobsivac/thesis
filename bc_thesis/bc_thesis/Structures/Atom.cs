@@ -26,7 +26,7 @@ namespace bc_thesis.Structures
         //s - sigma, p - pi, n - lone electron pair, x - bond to orbital from the same atom
         public Dictionary<int, string> OrbitalBonds { get; set; }
 
-        // <type: s/p/n, charge>
+        // <type: s/p/n, electronegativity>
         public Dictionary<string, double> OrbitalENs { get; set; }
 
         // <type: s/p/n, hardness>

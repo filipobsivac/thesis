@@ -47,6 +47,11 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Methods\EEM.cs" />
+    <Compile Include="Methods\MGC.cs" />
+    <Compile Include="Methods\MiscFunctions.cs" />
+    <Compile Include="Methods\OGC.cs" />
+    <Compile Include="Methods\Statistics.cs" />
     <Compile Include="Structures\Atom.cs" />
     <Compile Include="Structures\ElementParameters.cs" />
     <Compile Include="Structures\Molecule.cs" />

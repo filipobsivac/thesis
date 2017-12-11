@@ -1,4 +1,4 @@
-﻿using bc_thesis.Structures;
+﻿using EMOG.Structures;
 using MathNet.Numerics.LinearAlgebra;
 using System;
 using System.Collections.Generic;
@@ -7,7 +7,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 
-namespace bc_thesis
+namespace EMOG
 {
     class Program
     {
@@ -24,7 +24,10 @@ namespace bc_thesis
         static void Main(string[] args)
         {
             if (!CanParseArguments(args))
-                return;   
+            {
+                PrintHelp();
+                return;
+            }                
             if (args[0].Equals("stats"))
             {
                 string firstFilePath = Path.GetFullPath(Path.Combine(Environment.CurrentDirectory, args[1]));
@@ -79,31 +82,27 @@ namespace bc_thesis
         {
             if (items.Length == 0)
             {
-                PrintHelp();
+                Console.WriteLine("No arguments.");
                 return false;
             }
             else if (!(items[0].Equals("eem") || items[0].Equals("mgc") || items[0].Equals("ogc") || items[0].Equals("stats")))
             {
                 Console.WriteLine("Incorrect method name. Only \"eem\", \"mgc\", \"ogc\" or \"stats\" supported.");
-                PrintHelp();
                 return false;
             }      
             else if(items[0].Equals("stats") && items.Length != 6)
             {
                 Console.WriteLine("Incorrect number of arguments for statistics generation.");
-                PrintHelp();
                 return false;
             }
             else if (items[0].Equals("stats") && !(items[5].Equals("n") || items[5].Equals("y")))
             {
                 Console.WriteLine("Please specify whether you want to generate statistics for atom types according to their bond types with either \"y\" or \"n\"");
-                PrintHelp();
                 return false;
             }
             else if(((items[0].Equals("mgc") || items[0].Equals("ogc")) && items.Length != 3) || (items[0].Equals("eem") && items.Length != 4))
             {
                 Console.WriteLine($"Incorrect number of arguments for {items[0]} method.");
-                PrintHelp();
                 return false;
             }            
             return true;
@@ -1393,10 +1392,10 @@ namespace bc_thesis
 
             using (StreamWriter gnuplotFile = plotProcess.StandardInput)
             {
-                gnuplotFile.WriteLine("set terminal pdf size 3.75,2.25");
+                gnuplotFile.WriteLine("set terminal pdf size 3.75,2.25");                
                 gnuplotFile.WriteLine("set title \"Partial atomic charge correlation graph\"");
-                gnuplotFile.WriteLine("set xlabel \"First set of partial charges\"");
-                gnuplotFile.WriteLine("set ylabel \"Second set of partial charges\"");
+                gnuplotFile.WriteLine("set xlabel \"First set of charges\"");
+                gnuplotFile.WriteLine("set ylabel \"Second set of charges\"");
                 gnuplotFile.WriteLine("set xrange [-2:2]");
                 gnuplotFile.WriteLine("set yrange [-2:2]");
                 gnuplotFile.WriteLine($"set output '{graphFilePath}'");

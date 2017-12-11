@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace bc_thesis.Structures
+namespace EMOG.Structures
 {
     class UnsupportedAtomException : Exception
     {

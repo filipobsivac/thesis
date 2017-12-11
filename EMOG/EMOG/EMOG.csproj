@@ -7,8 +7,8 @@
     <ProjectGuid>{DDF4113C-565E-4403-8067-BF3E1F590914}</ProjectGuid>
     <OutputType>Exe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>bc_thesis</RootNamespace>
-    <AssemblyName>bc_thesis</AssemblyName>
+    <RootNamespace>EMOG</RootNamespace>
+    <AssemblyName>EMOG</AssemblyName>
     <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
@@ -55,8 +55,12 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="App.config" />
-    <None Include="packages.config" />
+    <None Include="App.config">
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="packages.config">
+      <SubType>Designer</SubType>
+    </None>
     <None Include="Data\CovalentRadius.csv" />
     <None Include="Data\ElementEN.csv" />
     <None Include="Data\OrbitalHardnessAndEN.csv" />

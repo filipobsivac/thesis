@@ -50,7 +50,7 @@ namespace EMOG.Methods
             Console.WriteLine("<output file> - Desired path and file name for output file.");
             Console.WriteLine("<GNUPlot .exe file> - Path to GNUPlot executable file.");
             Console.WriteLine("<parameters file> - Path and file name of the parameters file. Required only for EEM.");
-            Console.WriteLine("<EEM bonds flag> - \"y\" or \"n\" to specify whether statisticss should be generated for atoms according to their bond types or not. Not supported for OpenBabel output files.");
+            Console.WriteLine("<EEM bonds flag> - \"y\" or \"n\" to specify whether statistics should be generated for atoms according to their bond types or not. Not supported for PQR files.");
         }
 
         public static bool CanParseArguments(string[] items)

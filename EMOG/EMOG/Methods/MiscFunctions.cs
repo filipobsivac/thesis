@@ -42,10 +42,11 @@ namespace EMOG.Methods
         public static void PrintHelp()
         {
             Console.WriteLine("Arguments must be entered in the following format:");
-            Console.WriteLine("\"<method> <molecules file> <output file> <parameters file>\" or \"stats <first molecules file> <second molecules file> <output file> <GNUPlot .exe file> <EEM bonds flag>\"");
+            Console.WriteLine("\"<method> <molecules file> <output file> <parameters file>\" or \"stats <first charges file> <second charges file> <output file> <GNUPlot EXE file> <EEM bonds flag>\"");
             Console.WriteLine();
             Console.WriteLine("<method> - Method name. Only \"eem\", \"mgc\" or \"ogc\" supported.");
             Console.WriteLine("<molecules file> - Path and file name of the set of molecules.");
+            Console.WriteLine("<charges file> - Path and file name of the set of partial charges.");
             Console.WriteLine("<output file> - Desired path and file name for output file.");
             Console.WriteLine("<GNUPlot .exe file> - Path to GNUPlot executable file.");
             Console.WriteLine("<parameters file> - Path and file name of the parameters file. Required only for EEM.");

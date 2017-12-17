@@ -22,7 +22,7 @@ namespace EMOG.Structures
         // <bonded atom ID, bond type>       
         public Dictionary<int, int> Bonds { get; set; }
 
-        // <bonded OrbitalID, orbital charge type: s/p/n/x}>
+        // <bonded OrbitalID, orbital bond type: s/p/n/x}>
         //s - sigma, p - pi, n - lone electron pair, x - bond to orbital from the same atom
         public Dictionary<int, string> OrbitalBonds { get; set; }
 

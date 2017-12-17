@@ -101,7 +101,7 @@ namespace EMOG.Methods
             }
             catch (Exception ex)
             {
-                Console.WriteLine("Could not get orbital charges. Exception: " + ex.Message);
+                Console.WriteLine("Could not get covalent radius. Exception: " + ex.Message);
             }
             throw new UnsupportedAtomException($"Could not find covalent radius values for {symbol}.");
         }

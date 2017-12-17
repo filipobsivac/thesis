@@ -272,7 +272,7 @@ namespace EMOG.Methods
                 else if (FileVersion(fileName).Equals("V3000"))
                     molecules = LoadMoleculesV3000(reader);
                 else
-                    throw new Exception("Unsupported file format - only SDF file versions V2000 and V3000 supported.");
+                    throw new Exception("Unsupported file format - only MOL file versions V2000 and V3000 supported.");
             }
 
             return molecules;

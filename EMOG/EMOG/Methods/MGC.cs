@@ -38,7 +38,7 @@ namespace EMOG.Methods
             }
             catch (Exception ex)
             {
-                Console.WriteLine("Could not read Element EN .csv file. Exception: " + ex.Message);
+                Console.WriteLine("Could not get element EN. Exception: " + ex.Message);
             }
             throw new UnsupportedAtomException($"Could not find element {atom.Symbol} in EN database.");
         }
